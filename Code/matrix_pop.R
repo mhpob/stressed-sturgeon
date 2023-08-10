@@ -88,12 +88,15 @@ create_pop_mat <- function(vital_rates = NULL){
   
   
   ## solve for lambda = 1
-  obj_fun <- function(x, target = 1){
-    pop[2, 1] <- x
-    norm(max(abs(eigen(pop)$values)) - 1, '2')
+  obj_fun <- function(x, popmat, lamb = 1){
+    # det(A - lambda*I) = 0
+    # Find value for YOY survival that makes this the case
+    popmat[2, 1] <- x
+    norm(det(popmat - lamb * Diagonal(nrow(popmat))), '2')
   }
   
-  res <- optimize(obj_fun, interval = c(0, 1), tol = 1e-10)
+  res <- optimize(obj_fun, interval = c(0, 1), tol = 1e-10,
+                  popmat = pop)
   
   pop[2, 1] <- res$minimum
   

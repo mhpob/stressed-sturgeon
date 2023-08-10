@@ -1,0 +1,10 @@
+name: mpm_app
+title:
+username: mhpob
+account: mhpob
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9586111
+bundleId: 7554040
+url: https://mhpob.shinyapps.io/mpm_app/
+version: 1
