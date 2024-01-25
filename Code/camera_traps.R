@@ -30,6 +30,30 @@ trap_import <- function(up_down){
 }
 
 ## Upriver trap
+### 1st
+ur1 <- read_excel('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 9-5-23/camera_trap_data.xlsx')
+setDT(ur1)
+
+ur1[, c('st_frame', 'end_frame') :=
+          lapply(.SD, function(.) sprintf('%05d', .)),
+        .SDcols = c('st_frame', 'end_frame')]
+
+ur1[, st_time := file.mtime(
+  sprintf('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 9-5-23/PHOTO/IM_%s.jpg', st_frame)
+)]
+ur1[, end_time := file.mtime(
+  sprintf('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 9-5-23/PHOTO/IM_%s.jpg', end_frame)
+)]
+
+ur1[, end_time := fifelse(is.na(end_time), st_time, end_time)]
+
+ur1[, location := 'up river']
+
+ur1[st_frame == 13681, st_time := as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York')]
+ur1[end_frame == 13681, end_time := as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York')]
+
+
+### 2nd
 upriver <- trap_import('up river') 
 
 upriver[, st_hr := as.POSIXct(trunc(st_time, 'hours'))]
@@ -39,6 +63,28 @@ plot(N ~st_hr, data = k)
 
 
 ## Downriver trap
+### 1st
+dr1 <- read_excel('s:/Stressed Sturgeon_2022-2024/Camera traps/Down River Nanticoke 9-5-23/camera_trap_data_dr_nan.xlsx')
+setDT(dr1)
+dr1 <- dr1[st_frame != 'NA']
+
+dr1[, c('st_frame', 'end_frame') :=
+      lapply(.SD, function(.) sprintf('%05d', .)),
+    .SDcols = c('st_frame', 'end_frame')]
+
+dr1[, st_time := file.mtime(
+  sprintf('s:/Stressed Sturgeon_2022-2024/Camera traps/Down River Nanticoke 9-5-23/PHOTO/IM_%s.jpg', st_frame)
+)]
+dr1[, end_time := file.mtime(
+  sprintf('s:/Stressed Sturgeon_2022-2024/Camera traps/Down River Nanticoke 9-5-23/PHOTO/IM_%s.jpg', end_frame)
+)]
+
+dr1[, end_time := fifelse(is.na(end_time), st_time, end_time)]
+
+dr1[, location := 'down river']
+
+
+### 2nd
 downriver <- trap_import('down river')
 downriver <- downriver[!grepl('\\s+NA', st_frame)]
 
@@ -124,7 +170,7 @@ dets <- list.files('s:/Stressed Sturgeon_2022-2024/Nanticoke Vemco data 11-9-23/
          fill = TRUE) |> 
   rbindlist()
 
-dets[grepl('9001', Transmitter)]
+dets <- dets[grepl('9001', Transmitter)]
 
 ggplot() +
   
@@ -179,7 +225,7 @@ imgs <- data.frame(file_path = imgs,
                    file_time = image_time,
                    image_time = image_time - 60*60)
 
-# qs::qsave(imgs, '2023-09-05_09-27.qs')
+# qs::qsave(imgs, 'data/2023 camera traps/ur_2023-09-05_09-27.qs')
 
 
 
@@ -218,3 +264,90 @@ imgs <- data.frame(file_path = imgs,
                    image_time = image_time - 60*60)
 
 # qs::qsave(imgs, 'dr_2023-09-05_09-27.qs')
+
+# dr1 <- qs::qread('data/2023 camera traps/dr_2023-08-08_09-05.qs')
+# dr2 <- qs::qread('data/2023 camera traps/dr_2023-09-05_09-27.qs')
+# ur1 <- qs::qread('data/2023 camera traps/ur_2023-08-08_09-05.qs')
+# ur2 <- qs::qread('data/2023 camera traps/ur_2023-09-05_09-27.qs')
+# 
+# all_img_metadata <- Reduce(function(...) merge(..., all = T), list(dr1, dr2, ur1, ur2))
+# 
+# qs::qsave(all_img_metadata, 'data/2023 camera traps/all_image_metadata.qs')
+
+img_metadata <- qs::qread('data/2023 camera traps/all_image_metadata.qs')
+
+setDT(img_metadata)
+img_metadata[grepl('_13681\\.', file_path)
+             & grepl('Up River Nanticoke 9-5-23', file_path),
+             ':='(file_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'),
+                  image_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'))]
+img_metadata[, frame := gsub('\\.JPG$|^.*_', '', file_path)]
+img_metadata[, deployment := tstrsplit(file_path, '/', keep = 4)]
+img_metadata[, river_section := gsub(' River.*', '', deployment)]
+
+img_metadata[, deployment := gsub('^.*e ', '', deployment)]
+
+library(ggplot2)
+ggplot() +
+  geom_line(data = img_metadata,
+            aes(x = file_time, y = river_section, color = deployment),
+            linewidth = 10) +
+  geom_vline(data = dets, aes(xintercept = `Date and Time (UTC)`), color = 'red') +
+  annotate('rect',
+           xmin = as.POSIXct(
+             c('2023-08-08 13:01:24',
+               '2023-09-12 00:01:43'), 
+               tz = 'America/New_York'),
+           xmax = as.POSIXct(
+             c('2023-08-28 23:59:24',
+               '2023-09-25 07:39:34'),
+             tz = 'America/New_York'),
+           ymin = 1.75, ymax = 2.25,
+           fill = NA, color = 'green', linewidth = 3) +
+  annotate('rect',
+           xmin = as.POSIXct(
+             c('2023-08-08 12:30:18',
+               '2023-09-12 14:01:22'), 
+             tz = 'America/New_York'),
+           xmax = as.POSIXct(
+             c('2023-08-11 09:50:40',
+               '2023-09-25 05:07:22'),
+             tz = 'America/New_York'),
+           ymin = 0.75, ymax = 1.25,
+           fill = NA, color = 'green', linewidth = 3) +
+  geom_rect(data = ur1,
+            aes(xmin = st_time, xmax = end_time, ymin = 1.75, ymax = 2.25)) +
+  geom_rect(data = upriver,
+            aes(xmin = st_time, xmax = end_time, ymin = 1.75, ymax = 2.25)) +
+  geom_rect(data = dr1,
+            aes(xmin = st_time, xmax = end_time, ymin = 0.75, ymax = 1.25)) +
+  geom_rect(data = downriver,
+            aes(xmin = st_time, xmax = end_time, ymin = 0.75, ymax = 1.25)) +
+  labs(x = NULL, y = 'Array Section', color = 'Deployment Period') +
+  theme_minimal()
+
+## Audits as of 2024-01-25
+# UR 1st deployment audit complete
+# 1
+# 2023-08-08 13:01:24 EDT
+# 14730
+# 2023-08-28 23:59:24
+
+# Upriver second deployment audit complete
+# 4652
+# 2023-09-12T00:01:43-4
+# 
+# 2023-09-25T07:39:34-4
+# 14241
+
+# DR  1st deployment audit complete 
+# 1
+# 2023-08-08 12:30:18
+# 2081
+# 2023-08-11 09:50:40
+
+# DR  2nd deployment audit complete 
+# 4940
+# 2023-09-12 14:01:22
+# 13984 
+# 2023-09-25 05:07:22
