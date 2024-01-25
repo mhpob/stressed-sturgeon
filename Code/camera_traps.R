@@ -139,21 +139,82 @@ ggplot() +
   facet_wrap(~location, ncol = 1) +
   theme_minimal()
 
-###
 
+
+
+
+
+
+###
+# upriver, first tending
+imgs <- list.files('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 9-5-23/PHOTO',
+                   full.names = T)
+
+image_time <- numeric(length(imgs))
+image_time <- as.POSIXct(image_time, origin = '1970-01-01 00:00:00')
+
+for(i in seq_along(imgs)){
+  image_time[i] <- file.mtime(imgs[i])
+}
+
+imgs <- data.frame(file_path = imgs,
+                   file_time = image_time,
+                   image_time = image_time)
+
+# qs::qsave(imgs, '2023-08-08_09-05.qs')
+
+
+# upriver, second tending
 imgs <- list.files('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 11-9-23/PHOTO',
                    full.names = T)
 
 image_time <- numeric(length(imgs))
-image_time <- as.POSIXct(image_time)
+image_time <- as.POSIXct(image_time, origin = '1970-01-01 00:00:00')
 
-for(i in 3001:6000){
+for(i in seq_along(imgs)){
   image_time[i] <- file.mtime(imgs[i])
 }
 
-qs::qsave()
+imgs <- data.frame(file_path = imgs,
+                   file_time = image_time,
+                   image_time = image_time - 60*60)
 
-# file.mtime(
-#   file.path('s:/Stressed Sturgeon_2022-2024/Camera traps/Up River Nanticoke 11-9-23/PHOTO',
-#             'IM_04652.jpg')
-# )
+# qs::qsave(imgs, '2023-09-05_09-27.qs')
+
+
+
+
+# downriver, first tending
+imgs <- list.files('s:/Stressed Sturgeon_2022-2024/Camera traps/Down River Nanticoke 9-5-23/PHOTO',
+                   full.names = T)
+
+image_time <- numeric(length(imgs))
+image_time <- as.POSIXct(image_time, origin = '1970-01-01 00:00:00')
+
+for(i in seq_along(imgs)){
+  image_time[i] <- file.mtime(imgs[i])
+}
+
+imgs <- data.frame(file_path = imgs,
+                   file_time = image_time,
+                   image_time = image_time)
+
+# qs::qsave(imgs, 'dr_2023-08-08_09-05.qs')
+
+
+# downriver, second tending
+imgs <- list.files('s:/Stressed Sturgeon_2022-2024/Camera traps/Down River Nanticoke 11-9-23/PHOTO',
+                   full.names = T)
+
+image_time <- numeric(length(imgs))
+image_time <- as.POSIXct(image_time, origin = '1970-01-01 00:00:00')
+
+for(i in seq_along(imgs)){
+  image_time[i] <- file.mtime(imgs[i])
+}
+
+imgs <- data.frame(file_path = imgs,
+                   file_time = image_time,
+                   image_time = image_time - 60*60)
+
+# qs::qsave(imgs, 'dr_2023-09-05_09-27.qs')
