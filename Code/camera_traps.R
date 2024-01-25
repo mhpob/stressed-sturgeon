@@ -26,6 +26,9 @@ trap_import <- function(up_down){
   
   xl_file[, end_time := fifelse(is.na(end_time), st_time, end_time)]
   
+  setattr(xl_file$st_time, 'tzone', 'America/New_York')
+  setattr(xl_file$end_time, 'tzone', 'America/New_York')
+  
   xl_file[, location := up_down]
 }
 
@@ -351,3 +354,41 @@ ggplot() +
 # 2023-09-12 14:01:22
 # 13984 
 # 2023-09-25 05:07:22
+
+
+setkey(upriver, st_time, end_time)
+
+dets[, dt_local := `Date and Time (UTC)`]
+setattr(dets$dt_local, 'tzone', 'America/New_York')
+dets[, dummy := dt_local]
+setkey(dets, dt_local, dummy)
+foverlaps(dets, upriver, nomatch = 0) |> nrow()
+foverlaps(dets, upriver[!grepl('tug', type)], nomatch = 0) |> nrow()
+
+
+
+upriver[, end_pl2 := end_time + 2*60]
+upriver[, start_pl2 := st_time - 2*60]
+setkey(upriver, start_pl2, end_pl2)
+foverlaps(dets, upriver, nomatch = 0) |>
+  nrow()
+foverlaps(dets, upriver[grepl('tug', type)], nomatch = 0) |>
+  View()
+foverlaps(dets, upriver[!grepl('tug', type)], nomatch = 0) |>
+  nrow()
+
+dr_trim <- downriver[!is.na(st_time) & !is.na(end_time)]
+setkey(dr_trim, st_time, end_time)
+foverlaps(dets, dr_trim, nomatch = 0) |> nrow()
+foverlaps(dets, dr_trim[grepl('dock', type) & grepl('tug', type)], nomatch = 0) |> nrow()
+foverlaps(dets, dr_trim[!grepl('tug', type)], nomatch = 0) |> nrow()
+
+dr_trim[, end_pl2 := end_time + 2*60]
+dr_trim[, start_pl2 := st_time - 2*60]
+setkey(dr_trim, start_pl2, end_pl2)
+foverlaps(dets, dr_trim, nomatch = 0) |>
+  nrow()
+foverlaps(dets, dr_trim[grepl('tug', type) & grepl('dock', type)], nomatch = 0) |>
+  nrow()
+foverlaps(dets, dr_trim[!grepl('tug', type)], nomatch = 0) |>
+  nrow()
