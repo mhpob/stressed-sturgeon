@@ -102,7 +102,9 @@ trap_data <- rbind(upriver, downriver)
 trap_data[, st_hr := as.POSIXct(trunc(st_time, 'hours'))]
 trap_data[, st_20m := lubridate::floor_date(st_time, '20 minutes')]
 
-## looking through data, when there are paired detections the upriver camera is often 22seconds behind upriver
+# fwrite(trap_data, 'data/2023 camera traps/trap_data.csv')
+
+# looking through data, when there are paired detections the upriver camera is often 22seconds behind upriver
 trap_data[, st_m := lubridate::floor_date(st_time, 'minute')]
 
 trap_hourly <- trap_data[, .N, by = .(st_hr, location)]
@@ -275,20 +277,22 @@ imgs <- data.frame(file_path = imgs,
 # 
 # all_img_metadata <- Reduce(function(...) merge(..., all = T), list(dr1, dr2, ur1, ur2))
 # 
+# setDT(all_img_metadata)
+# all_img_metadata[grepl('_13681\\.', file_path)
+#              & grepl('Up River Nanticoke 9-5-23', file_path),
+#              ':='(file_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'),
+#                   image_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'))]
+# all_img_metadata[, frame := gsub('\\.JPG$|^.*_', '', file_path)]
+# all_img_metadata[, deployment := tstrsplit(file_path, '/', keep = 4)]
+# all_img_metadata[, river_section := gsub(' River.*', '', deployment)]
+# 
+# all_img_metadata[, deployment := gsub('^.*e ', '', deployment)]
+# 
+# 
 # qs::qsave(all_img_metadata, 'data/2023 camera traps/all_image_metadata.qs')
 
 img_metadata <- qs::qread('data/2023 camera traps/all_image_metadata.qs')
 
-setDT(img_metadata)
-img_metadata[grepl('_13681\\.', file_path)
-             & grepl('Up River Nanticoke 9-5-23', file_path),
-             ':='(file_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'),
-                  image_time = as.POSIXct('2023-08-27 13:01:22', tz = 'America/New_York'))]
-img_metadata[, frame := gsub('\\.JPG$|^.*_', '', file_path)]
-img_metadata[, deployment := tstrsplit(file_path, '/', keep = 4)]
-img_metadata[, river_section := gsub(' River.*', '', deployment)]
-
-img_metadata[, deployment := gsub('^.*e ', '', deployment)]
 
 library(ggplot2)
 ggplot() +
