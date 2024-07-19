@@ -30,60 +30,61 @@ spawn_data <- spawn_data |>
 
 ## Skipping ahead... mod_int3 is the selected model
 
-mod_int <- brm(spawn ~ sex*river*last_spawn + (1|fishid),
-               data = spawn_data, family = 'bernoulli',
-               iter = 6000, thin = 5, warmup = 4000, cores = 4)
-mod_int2 <- update(mod_int, formula. = ~ . - sex:river:last_spawn)
+# mod_int <- brm(spawn ~ sex*river*last_spawn + (1|fishid),
+#                data = spawn_data, family = 'bernoulli',
+#                iter = 6000, thin = 5, warmup = 4000, cores = 4)
+# mod_int2 <- update(mod_int, formula. = ~ . - sex:river:last_spawn)
 
 
-# mod_int3 <- brm(spawn ~ sex*river + last_spawn + sex:last_spawn + (1|fishid),
-#                 data = spawn_data, family = 'bernoulli',
-#                 iter = 6000, thin = 5, warmup = 4000, cores = 4)
-mod_int3 <- update(mod_int, formula. = ~ . - sex:river:last_spawn - river:last_spawn)
-mod_int3 <- add_criterion(mod_int3, 'loo')
-mod_int4 <- update(mod_int, formula. = ~ . - sex:river:last_spawn - sex:last_spawn)
-mod_int4 <- add_criterion(mod_int4, 'loo')
+mod_int3 <- brm(spawn ~ sex*river + last_spawn + sex:last_spawn + (1|fishid),
+                data = spawn_data, family = 'bernoulli',
+                iter = 6000, thin = 5, warmup = 4000, cores = 4)
 
-mod_int5 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn)
-mod_int5 <- add_criterion(mod_int5, 'loo')
-
-mod_int6 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn - sex:river)
-mod_int6 <- add_criterion(mod_int6, 'loo')
-
-mod_int7 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                     sex:river - last_spawn)
-mod_int7 <- add_criterion(mod_int7, 'loo')
-
-mod_int8 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                     sex:river - river)
-mod_int8 <- add_criterion(mod_int8, 'loo')
-
-mod_int9 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                     sex:river - sex)
-mod_int9 <- add_criterion(mod_int9, 'loo')
-
-mod_int10 <- update(mod_int, formula. = ~ . 
-                   - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                     sex:river - last_spawn - sex)
-mod_int10 <- add_criterion(mod_int10, 'loo')
-
-mod_int11 <- update(mod_int, formula. = ~ . 
-                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                      sex:river - last_spawn - river)
-mod_int11 <- add_criterion(mod_int11, 'loo')
-
-mod_int12 <- update(mod_int, formula. = ~ . 
-                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
-                      sex:river - river - sex)
-mod_int12 <- add_criterion(mod_int12, 'loo')
-
-mod_int13 <- update(mod_int13)
-mod_int13 <- add_criterion(mod_int13, 'loo')
+# mod_int3 <- update(mod_int, formula. = ~ . - sex:river:last_spawn - river:last_spawn)
+# mod_int3 <- add_criterion(mod_int3, 'loo')
+# mod_int4 <- update(mod_int, formula. = ~ . - sex:river:last_spawn - sex:last_spawn)
+# mod_int4 <- add_criterion(mod_int4, 'loo')
+# 
+# mod_int5 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn)
+# mod_int5 <- add_criterion(mod_int5, 'loo')
+# 
+# mod_int6 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - sex:river)
+# mod_int6 <- add_criterion(mod_int6, 'loo')
+# 
+# mod_int7 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                      sex:river - last_spawn)
+# mod_int7 <- add_criterion(mod_int7, 'loo')
+# 
+# mod_int8 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                      sex:river - river)
+# mod_int8 <- add_criterion(mod_int8, 'loo')
+# 
+# mod_int9 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                      sex:river - sex)
+# mod_int9 <- add_criterion(mod_int9, 'loo')
+# 
+# mod_int10 <- update(mod_int, formula. = ~ . 
+#                    - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                      sex:river - last_spawn - sex)
+# mod_int10 <- add_criterion(mod_int10, 'loo')
+# 
+# mod_int11 <- update(mod_int, formula. = ~ . 
+#                     - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                       sex:river - last_spawn - river)
+# mod_int11 <- add_criterion(mod_int11, 'loo')
+# 
+# mod_int12 <- update(mod_int, formula. = ~ . 
+#                     - sex:river:last_spawn - sex:last_spawn - river:last_spawn - 
+#                       sex:river - river - sex)
+# mod_int12 <- add_criterion(mod_int12, 'loo')
+# 
+# mod_int13 <- update(mod_int13)
+# mod_int13 <- add_criterion(mod_int13, 'loo')
 
 loo_compare(mod_int, mod_int2, mod_int3, mod_int4, mod_int5, mod_int6, mod_int7,
             mod_int8, mod_int9, mod_int10, mod_int11, mod_int12, mod_int13)
@@ -151,16 +152,42 @@ plot_dat <- mod_int3 %>%
 marginaleffects::predictions(mod, by='sex')
 marginaleffects::predictions(mod, by='river')
 
-A <- marginaleffects::plot_predictions(mod_int3,
+# A <- 
+  marginaleffects::plot_predictions(mod_int3,
                                   condition = c('last_spawn', 'river', 'sex')) +
   labs(x = 'Years since previous spawning run', y = 'Marginal probability of spawning',
        color = 'River of\ntagging', fill = 'River of\ntagging') +
-  theme_minimal()
+  theme_minimal() +
+  scale_color_manual(values = c(
+    I(rgb(120, 90, 236,  maxColorValue = 255)),
+    # I(rgb(186, 141, 228,  maxColorValue = 255)),
+    I(rgb(222, 132, 11,  maxColorValue = 255))
+    # I(rgb(210, 182, 144,  maxColorValue = 255))
+  )) +
+    scale_fill_manual(values = c(
+      I(rgb(120, 90, 236,  maxColorValue = 255)),
+      # I(rgb(186, 141, 228,  maxColorValue = 255)),
+      I(rgb(222, 132, 11,  maxColorValue = 255))
+      # I(rgb(210, 182, 144,  maxColorValue = 255))
+    ))
 
-B <- plot_predictions(mod_int3,by = c('sex','river')) +
+# B <- 
+  marginaleffects::plot_predictions(mod_int3,by = c('sex','river')) +
   labs(x = 'Sex', y = 'Marginal probability of spawning') +
   theme_minimal() +
-  theme(legend.position = 'none')
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c(
+    I(rgb(120, 90, 236,  maxColorValue = 255)),
+    # I(rgb(186, 141, 228,  maxColorValue = 255)),
+    I(rgb(222, 132, 11,  maxColorValue = 255))
+    # I(rgb(210, 182, 144,  maxColorValue = 255))
+  )) +
+  scale_fill_manual(values = c(
+    I(rgb(120, 90, 236,  maxColorValue = 255)),
+    # I(rgb(186, 141, 228,  maxColorValue = 255)),
+    I(rgb(222, 132, 11,  maxColorValue = 255))
+    # I(rgb(210, 182, 144,  maxColorValue = 255))
+  ))
 
 library(patchwork)
 B+A+plot_layout(axes = 'collect', widths = c(1,2))
@@ -195,12 +222,18 @@ river <- plot(river, plot = F)[[1]] +
 sex + river + plot_layout(axes = 'collect')
 
 # plot ranefs
-fish <- ggplot(data = filter(plot_dat),
+# fish <- 
+  ggplot(data = filter(plot_dat),
                aes(x = bernoulli()$linkinv(mu), y = reorder(fishid, mu),
                    color = interaction(sex,river))) +
   stat_pointinterval() +
   coord_cartesian(xlim = c(0,1), expand = F)+
-  # scale_color_viridis_d(option = 'H') +
+  scale_color_manual(values = c(
+    I(rgb(120, 90, 236,  maxColorValue = 255)),
+    I(rgb(186, 141, 228,  maxColorValue = 255)),
+    I(rgb(222, 132, 11,  maxColorValue = 255)),
+    I(rgb(210, 182, 144,  maxColorValue = 255))
+  )) +
   labs(y = 'Fish', x = 'Probability of consecutive spawning runs',
        color = NULL) +
   theme_minimal() +
@@ -219,3 +252,26 @@ jj <- j |>
 
 tlfl_mod_s <- brm(tl_cm ~ fl_cm *sex,
                   data = jj)
+
+
+
+
+########## figures for AFS 2024 presentation?
+library(ggplot2)
+
+spawn_data |> 
+  mutate(river = ifelse(river == 'nanticoke', 'Nanticoke', 'York')) |> 
+  ggplot() +
+  geom_histogram(aes(x = last_spawn, fill = sex),
+                 position = position_dodge()) +
+  facet_wrap(~river, ncol = 1) +
+  theme_minimal() +
+  labs(x = 'Years since last spawn', y = '')
+
+library(dplyr)
+
+spawn_data |> 
+  distinct(fishid, river, sex) |> 
+  count(sex, river)
+
+xtabs(~last_spawn+sex+river, data = spawn_data)
