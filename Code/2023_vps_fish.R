@@ -51,7 +51,7 @@ library(ggplot2)
 library(ragg)
 
 
-agg_png('test.png', width = 750, height = 900)
+# agg_png('test.png', width = 750, height = 900)
 ggplot(data = k) + 
   annotate('rect', xmin = min(k$min), xmax = max(k$max),
            ymax = '0.5 Federalsburg', ymin = '4.9 Marshyhope Confluence',
@@ -64,7 +64,8 @@ ggplot(data = k) +
            fill = 'blue', alpha = 0.5) +
   geom_segment(aes(x = min, xend = max, y = station_fac),
                lwd = 2) +
+  scale_y_discrete(breaks = j$stationname[seq(1,nrow(j), by = 3)]) +
   facet_wrap(~transmitter, ncol = 1) +
   theme_minimal() +
   labs(x = NULL, y = NULL)
-dev.off()
+# dev.off()
