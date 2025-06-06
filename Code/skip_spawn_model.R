@@ -56,7 +56,8 @@ spawn_data <- spawn_data |>
   select(-no_spawn)
 
 ## Skipping ahead... mod_int3 is the selected model
-
+options(mc.cores = 30)
+ cat("1\n")
 mod_int <- brm(
   spawn ~ sex * river * last_spawn + (1 | fishid),
   data = spawn_data,
@@ -66,39 +67,45 @@ mod_int <- brm(
   ),
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T) #might need reloo=T
 
+cat("2\n")
 mod_int2 <- update(mod_int,
   formula. = ~ . - sex:river:last_spawn,
-  cores = 4, iter = 6000, warmup = 3500
+  iter = 6000, warmup = 3500,
+  save_pars = save_pars(all = TRUE)
 ) |>
-  add_criterion("loo")
+  add_criterion("loo", moment_match = T)
 
+cat("3\n")
 mod_int3 <- update(
   mod_int,
   formula. = ~ . - sex:river:last_spawn - river:last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("4\n")
 mod_int4 <- update(
   mod_int,
   formula. = ~ . - sex:river:last_spawn - sex:last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("5\n")
 mod_int5 <- update(
   mod_int,
   formula. = ~ . - sex:river:last_spawn - sex:last_spawn - river:last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("6\n")
 mod_int6 <- update(
   mod_int,
   formula. = ~ . -
@@ -108,9 +115,10 @@ mod_int6 <- update(
     sex:river,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("7\n")
 mod_int7 <- update(
   mod_int,
   formula. = ~ . -
@@ -121,9 +129,10 @@ mod_int7 <- update(
     last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("8\n")
 mod_int8 <- update(
   mod_int,
   formula. = ~ . -
@@ -134,9 +143,10 @@ mod_int8 <- update(
     river,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("9\n")
 mod_int9 <- update(
   mod_int,
   formula. = ~ . -
@@ -147,9 +157,10 @@ mod_int9 <- update(
     sex,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("10\n")
 mod_int10 <- update(
   mod_int,
   formula. = ~ . -
@@ -161,9 +172,10 @@ mod_int10 <- update(
     sex,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("11\n")
 mod_int11 <- update(
   mod_int,
   formula. = ~ . -
@@ -175,9 +187,10 @@ mod_int11 <- update(
     river,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("12\n")
 mod_int12 <- update(
   mod_int,
   formula. = ~ . -
@@ -189,9 +202,10 @@ mod_int12 <- update(
     sex,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("13\n")
 mod_int13 <- update(
   mod_int,
   formula. = ~ . -
@@ -199,9 +213,10 @@ mod_int13 <- update(
     sex:river,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("14\n")
 mod_int14 <- update(
   mod_int,
   formula. = ~ . -
@@ -210,9 +225,12 @@ mod_int14 <- update(
     river:last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
+mod_int14b <- mod_int14 |> 
+  add_criterion("loo", moment_match = T, reloo = T, overwrite=T)
 
+cat("15\n")
 mod_int15 <- update(
   mod_int,
   formula. = ~ . -
@@ -221,9 +239,11 @@ mod_int15 <- update(
     sex:last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+
+cat("16\n")
 mod_int16 <- update(
   mod_int,
   formula. = ~ . -
@@ -233,9 +253,10 @@ mod_int16 <- update(
     last_spawn,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
+cat("17\n")
 mod_int17 <- update(
   mod_int,
   formula. = ~ . -
@@ -245,10 +266,10 @@ mod_int17 <- update(
     river,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
-
+cat("18\n")
 mod_int18 <- update(
   mod_int,
   formula. = ~ . -
@@ -258,8 +279,8 @@ mod_int18 <- update(
     sex,
   iter = 6000,
   warmup = 3500,
-  cores = 4
-) |> add_criterion("loo")
+  save_pars = save_pars(all = TRUE)
+) |> add_criterion("loo", moment_match = T)
 
 loo_res <- loo_compare(
   mod_int,
@@ -291,7 +312,7 @@ data.frame(
   eff_params_uci = loo_res[, "p_loo"] + 1.96 * loo_res[, "se_p_loo"]
 )
 
-
+save(mod_int, mod_int2, mod_int3, mod_int13, mod_int14, file = "spawn_model_20250605.RData")
 pp_check(mod_int14)
 pp_check(mod_int14, type = "bars", ndraws = 100)
 pp_check(mod_int14, type = "stat")
