@@ -26,9 +26,17 @@ balazik <- readxl::read_excel(
 ) |>
   rename_all(tolower) |>
   rename(fishid = "telemetry tag", river = "tag river") |>
-  filter(population == "Fall", !is.na(year), collection_date < "2024-01-01") |>
+  filter(
+    population == "Fall",
+    !is.na(year),
+    collection_date < "2024-01-01",
+    !fishid %in%
+      c(
+        28267 # NC stray
+      )
+  ) |>
   mutate(
-    spawn = ifelse(spawn == "y", T, F),
+    spawn = ifelse(spawn %in% c("y", "Y"), T, F),
     fishid = as.character(fishid),
     sex = toupper(sex)
   )
@@ -160,6 +168,7 @@ mod_int9 <- update(
   save_pars = save_pars(all = TRUE)
 ) |> add_criterion("loo", moment_match = T)
 
+
 cat("10\n")
 mod_int10 <- update(
   mod_int,
@@ -241,7 +250,6 @@ mod_int15 <- update(
   warmup = 3500,
   save_pars = save_pars(all = TRUE)
 ) |> add_criterion("loo", moment_match = T)
-
 
 cat("16\n")
 mod_int16 <- update(
@@ -357,12 +365,12 @@ plot_dat <- mod_int3 %>%
         b_Intercept + b_riveryork + b_last_spawn + r_fishid,
       river == "york" & sex == "M" ~
         b_Intercept +
-        b_sexM +
-        b_riveryork +
-        b_last_spawn +
-        `b_sexM:riveryork` +
-        `b_sexM:last_spawn` +
-        r_fishid
+          b_sexM +
+          b_riveryork +
+          b_last_spawn +
+          `b_sexM:riveryork` +
+          `b_sexM:last_spawn` +
+          r_fishid
     )
   ) |>
   ungroup()
@@ -527,10 +535,10 @@ tlfl_mod_s <- brm(tl_cm ~ fl_cm * sex, data = jj)
 library(ggplot2)
 
 spawn_data |>
-  mutate(river = ifelse(river == "nanticoke", "Nanticoke", "York")) |>
+  # mutate(river = ifelse(river == "nanticoke", "Nanticoke", "York")) |>
   ggplot() +
   geom_histogram(aes(x = last_spawn, fill = sex), position = position_dodge()) +
-  facet_wrap(~river, ncol = 1) +
+  facet_wrap(~river, ncol = 2, scales = 'free_y') +
   theme_minimal() +
   labs(x = "Years since last spawn", y = "")
 
