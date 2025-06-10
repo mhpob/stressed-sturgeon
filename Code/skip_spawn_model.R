@@ -47,7 +47,23 @@ spawn_data <- bind_rows(
   nr_data[, c("fishid", "year", "sex", "spawn", "river")],
   hager[, c("fishid", "year", "sex", "spawn", "river")],
   balazik[, c("fishid", "year", "sex", "spawn", "river")]
-)
+) |>
+  filter(
+    !(fishid == 27545 & year >= 2018),
+    !(fishid == 26235 & year >= 2019),
+    !(fishid == 27545 & year >= 2018),
+    !(fishid == 27547 & year >= 2019),
+    !(fishid == 26354 & year >= 2019),
+    !(fishid == 23900 & year >= 2019),
+    !(fishid == 27545 & year >= 2018),
+    !(fishid %in% c("21072", "21061", "14-009")),
+    !(fishid == 21060 & year >= 2019),
+    !(fishid == 26041 & year >= 2018),
+    !(fishid == 21892 & year >= 2020),
+    !(fishid == 21904 & year >= 2016),
+    !(fishid == 21899 & year >= 2018),
+    !(fishid == 16042 & year >= 2018)
+  )
 
 spawn_data <- spawn_data |>
   group_by(fishid) |>
@@ -69,6 +85,7 @@ spawn_data <- spawn_data |>
 
 ## Skipping ahead... mod_int14 is the selected model
 options(mc.cores = 30)
+
 cat("1\n")
 mod_int <- brm(
   spawn ~ sex * river * last_spawn + (1 | fishid),
@@ -81,7 +98,7 @@ mod_int <- brm(
   warmup = 3500,
   save_pars = save_pars(all = TRUE)
 ) |>
-  add_criterion("loo", moment_match = T) #might need reloo=T
+  add_criterion("loo", moment_match = T) # might need reloo=T
 
 cat("2\n")
 mod_int2 <- update(
@@ -392,8 +409,8 @@ plot_dat <- mod %>%
   left_join(distinct(spawn_data, fishid, sex, river), by = "fishid") |>
   mutate(
     mu = case_when(
-      river == 'James' & sex == "F" ~ b_Intercept + b_last_spawn + r_fishid,
-      river == 'James' & sex == "M" ~
+      river == "James" & sex == "F" ~ b_Intercept + b_last_spawn + r_fishid,
+      river == "James" & sex == "M" ~
         b_Intercept + b_sexM + b_last_spawn + `b_sexM:last_spawn` + r_fishid,
       river == "nanticoke" & sex == "F" ~
         b_Intercept +
@@ -640,7 +657,7 @@ spawn_data |>
   # mutate(river = ifelse(river == "nanticoke", "Nanticoke", "York")) |>
   ggplot() +
   geom_histogram(aes(x = last_spawn, fill = sex), position = position_dodge()) +
-  facet_wrap(~river, ncol = 2, scales = 'free_y') +
+  facet_wrap(~river, ncol = 2, scales = "free_y") +
   theme_minimal() +
   labs(x = "Years since last spawn", y = "")
 
