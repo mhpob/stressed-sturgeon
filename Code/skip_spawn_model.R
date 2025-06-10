@@ -45,7 +45,23 @@ spawn_data <- bind_rows(
   nr_data[, c("fishid", "year", "sex", "spawn", "river")],
   hager[, c("fishid", "year", "sex", "spawn", "river")],
   balazik[, c("fishid", "year", "sex", "spawn", "river")]
-)
+) |>
+  filter(
+    !(fishid == 27545 & year >= 2018),
+    !(fishid == 26235 & year >= 2019),
+    !(fishid == 27545 & year >= 2018),
+    !(fishid == 27547 & year >= 2019),
+    !(fishid == 26354 & year >= 2019),
+    !(fishid == 23900 & year >= 2019),
+    !(fishid == 27545 & year >= 2018),
+    !(fishid %in% c("21072", "21061", "14-009")),
+    !(fishid == 21060 & year >= 2019),
+    !(fishid == 26041 & year >= 2018),
+    !(fishid == 21892 & year >= 2020),
+    !(fishid == 21904 & year >= 2016),
+    !(fishid == 21899 & year >= 2018),
+    !(fishid == 16042 & year >= 2018)
+  )
 
 spawn_data <- spawn_data |>
   group_by(fishid) |>
@@ -65,7 +81,8 @@ spawn_data <- spawn_data |>
 
 ## Skipping ahead... mod_int3 is the selected model
 options(mc.cores = 30)
- cat("1\n")
+
+cat("1\n")
 mod_int <- brm(
   spawn ~ sex * river * last_spawn + (1 | fishid),
   data = spawn_data,
@@ -76,7 +93,7 @@ mod_int <- brm(
   iter = 6000,
   warmup = 3500,
   save_pars = save_pars(all = TRUE)
-) |> add_criterion("loo", moment_match = T) #might need reloo=T
+) |> add_criterion("loo", moment_match = T) # might need reloo=T
 
 cat("2\n")
 mod_int2 <- update(mod_int,
@@ -236,8 +253,8 @@ mod_int14 <- update(
   warmup = 3500,
   save_pars = save_pars(all = TRUE)
 ) |> add_criterion("loo", moment_match = T)
-mod_int14b <- mod_int14 |> 
-  add_criterion("loo", moment_match = T, reloo = T, overwrite=T)
+mod_int14b <- mod_int14 |>
+  add_criterion("loo", moment_match = T, reloo = T, overwrite = T)
 
 cat("15\n")
 mod_int15 <- update(
@@ -320,7 +337,9 @@ data.frame(
   eff_params_uci = loo_res[, "p_loo"] + 1.96 * loo_res[, "se_p_loo"]
 )
 
-save(mod_int, mod_int2, mod_int3, mod_int13, mod_int14, file = "spawn_model_20250605.RData")
+save(mod_int, mod_int13, mod_int2, mod_int3, mod_int14, mod_int15, mod_int4,
+  file = "spawn_model_20250610.RData"
+)
 pp_check(mod_int14)
 pp_check(mod_int14, type = "bars", ndraws = 100)
 pp_check(mod_int14, type = "stat")
@@ -365,12 +384,12 @@ plot_dat <- mod_int3 %>%
         b_Intercept + b_riveryork + b_last_spawn + r_fishid,
       river == "york" & sex == "M" ~
         b_Intercept +
-          b_sexM +
-          b_riveryork +
-          b_last_spawn +
-          `b_sexM:riveryork` +
-          `b_sexM:last_spawn` +
-          r_fishid
+        b_sexM +
+        b_riveryork +
+        b_last_spawn +
+        `b_sexM:riveryork` +
+        `b_sexM:last_spawn` +
+        r_fishid
     )
   ) |>
   ungroup()
@@ -538,7 +557,7 @@ spawn_data |>
   # mutate(river = ifelse(river == "nanticoke", "Nanticoke", "York")) |>
   ggplot() +
   geom_histogram(aes(x = last_spawn, fill = sex), position = position_dodge()) +
-  facet_wrap(~river, ncol = 2, scales = 'free_y') +
+  facet_wrap(~river, ncol = 2, scales = "free_y") +
   theme_minimal() +
   labs(x = "Years since last spawn", y = "")
 
