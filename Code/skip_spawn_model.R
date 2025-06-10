@@ -65,6 +65,8 @@ spawn_data <- spawn_data |>
   ungroup() |>
   select(-no_spawn)
 
+#include yrs post tagging?
+
 ## Skipping ahead... mod_int14 is the selected model
 options(mc.cores = 30)
 cat("1\n")
@@ -342,11 +344,11 @@ data.frame(
 )
 
 # save(mod_int, mod_int2, mod_int3, mod_int13, mod_int14, file = "spawn_model_20250605.RData")
-# load('Data/skip_spawn/spawn_model_20250605.RData')
+# load('Data/skip_spawn/spawn_model_20250610.RData')
 mod <- mod_int14
-pp_check(mod_int14)
-pp_check(mod_int14, type = "bars", ndraws = 100)
-pp_check(mod_int14, type = "stat")
+pp_check(mod)
+pp_check(mod, type = "bars", ndraws = 100)
+pp_check(mod, type = "stat")
 
 
 # mod2 <- brm(spawn ~ 0 + sex + river + (1|fishid),
@@ -363,7 +365,14 @@ library(tidybayes)
 library(dplyr)
 library(ggplot2)
 
-get_variables(mod)[1:7]
+# times more likely to spawn
+marginaleffects::avg_comparisons(
+  mod, 
+  variables = list(sex = 'pairwise'),
+  newdata = marginaleffects::datagrid(last_spawn = 1),
+  comparison = 'ratio')
+
+get_variables(mod)
 
 plot_dat <- mod %>%
   spread_draws(
@@ -374,9 +383,12 @@ plot_dat <- mod %>%
     b_riveryork,
     b_last_spawn,
     `b_sexM:last_spawn`,
+    # `b_rivernanticoke:last_spawn`,
+    # `b_riverRappahannock:last_spawn`,
+    # `b_riveryork:last_spawn`,
     r_fishid[fishid, ]
-  ) %>%
-  # sample_draws(500) |>
+  ) |>
+  sample_draws(500) |>
   left_join(distinct(spawn_data, fishid, sex, river), by = "fishid") |>
   mutate(
     mu = case_when(
@@ -384,32 +396,52 @@ plot_dat <- mod %>%
       river == 'James' & sex == "M" ~
         b_Intercept + b_sexM + b_last_spawn + `b_sexM:last_spawn` + r_fishid,
       river == "nanticoke" & sex == "F" ~
-        b_Intercept + b_rivernanticoke + b_last_spawn + r_fishid,
+        b_Intercept +
+          b_rivernanticoke +
+          b_last_spawn +
+          # `b_rivernanticoke:last_spawn` +
+          r_fishid,
       river == "nanticoke" & sex == "M" ~
         b_Intercept +
           b_sexM +
           b_rivernanticoke +
           b_last_spawn +
           `b_sexM:last_spawn` +
+          # `b_rivernanticoke:last_spawn` +
           r_fishid,
       river == "york" & sex == "F" ~
-        b_Intercept + b_riveryork + b_last_spawn + r_fishid,
+        b_Intercept +
+          b_riveryork +
+          b_last_spawn +
+          # `b_riveryork:last_spawn` +
+          r_fishid,
       river == "york" & sex == "M" ~
         b_Intercept +
           b_sexM +
           b_riveryork +
           b_last_spawn +
           `b_sexM:last_spawn` +
+          # `b_riveryork:last_spawn` +
           r_fishid,
       river == "Rappahannock" & sex == "F" ~
-        b_Intercept + b_riverRappahannock + b_last_spawn + r_fishid,
+        b_Intercept +
+          b_riverRappahannock +
+          b_last_spawn +
+          # `b_riverRappahannock:last_spawn` +
+          r_fishid,
       river == "Rappahannock" & sex == "M" ~
         b_Intercept +
           b_sexM +
           b_riverRappahannock +
           b_last_spawn +
           `b_sexM:last_spawn` +
+          # `b_riverRappahannock:last_spawn` +
           r_fishid
+    ),
+    river = case_when(
+      river == 'nanticoke' ~ 'Nanticoke',
+      river == 'york' ~ 'York',
+      .default = river
     )
   ) |>
   ungroup()
@@ -418,6 +450,11 @@ plot_dat <- mod %>%
 # plot effects
 marginaleffects::predictions(mod, by = "sex")
 marginaleffects::predictions(mod, by = "river")
+df <- marginaleffects::avg_predictions(
+  mod,
+  variables = list(last_spawn = c(1, 2, 3, 4, 5, 6, 7), sex = c("F", "M"))
+) |>
+  data.frame()
 
 # A <-
 marginaleffects::plot_predictions(
@@ -426,31 +463,43 @@ marginaleffects::plot_predictions(
 ) +
   labs(
     x = "Years since previous spawning run",
-    y = "Marginal probability of spawning",
+    y = "Marginal probability of spawning run",
     color = "River of\ntagging",
     fill = "River of\ntagging"
   ) +
-  theme_minimal() # +
-# scale_color_manual(
-#   values = c(
-#     I(rgb(120, 90, 236, maxColorValue = 255)),
-#     # I(rgb(186, 141, 228,  maxColorValue = 255)),
-#     I(rgb(222, 132, 11, maxColorValue = 255))
-#     # I(rgb(210, 182, 144,  maxColorValue = 255))
-#   )
-# ) +
-# scale_fill_manual(
-#   values = c(
-#     I(rgb(120, 90, 236, maxColorValue = 255)),
-#     # I(rgb(186, 141, 228,  maxColorValue = 255)),
-#     I(rgb(222, 132, 11, maxColorValue = 255))
-#     # I(rgb(210, 182, 144,  maxColorValue = 255))
-#   )
-# )
+  theme_minimal() +
+  scale_color_brewer(
+    type = 'qual',
+    palette = 'Dark2',
+    labels = c('James', 'Nanticoke', 'Rappahannock', 'York')
+  ) +
+  scale_fill_brewer(
+    type = 'qual',
+    palette = 'Dark2',
+    labels = c('James', 'Nanticoke', 'Rappahannock', 'York')
+  ) +
+  geom_pointrange(
+    data = df,
+    aes(x = last_spawn, y = estimate, ymin = conf.low, ymax = conf.high)
+  ) +
+  theme(
+    strip.text = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18),
+    legend.position = 'none',
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18)
+  )
+
 
 # B <-
-marginaleffects::plot_predictions(mod_int3, by = c("sex", "river")) +
-  labs(x = "Sex", y = "Marginal probability of spawning") +
+marginaleffects::plot_predictions(mod, by = c("sex", "river")) +
+  labs(x = "Sex", y = "Marginal probability of spawning run") +
+  scale_color_brewer(
+    type = 'qual',
+    palette = 'Dark2',
+    labels = c('James', 'Nanticoke', 'Rappahannock', 'York')
+  ) +
   theme_minimal() +
   theme(legend.position = "none") #+
 # scale_color_manual(
@@ -475,13 +524,19 @@ B + A + plot_layout(axes = "collect", widths = c(1, 2))
 
 # prob of spawning by sex and river
 marginaleffects::avg_predictions(mod, by = c("sex"))
+df <- marginaleffects::avg_predictions(
+  mod_int13,
+  variables = list(last_spawn = 1, sex = c("F", "M"))
+) |>
+  data.frame()
+
 # prob of females spawning after 4.5yrs from Stevenson 1997
 marginaleffects::avg_predictions(
   mod,
-  variables = list(last_spawn = 4.5, sex = "F")
+  variables = list(last_spawn = c(3, 4.5, 6), sex = c("F"))
 )
 
-marginaleffects::avg_predictions(mod_int, by = c("sex", "river"))
+marginaleffects::avg_predictions(mod_int13, by = c("sex"))
 
 library(patchwork)
 sex <- conditional_effects(mod, "sex")
@@ -517,7 +572,7 @@ river <- plot(river, plot = F)[[1]] +
 sex + river + plot_layout(axes = "collect")
 
 # plot ranefs
-# fish <-
+fish <-
 ggplot(
   data = filter(plot_dat),
   aes(
@@ -526,16 +581,34 @@ ggplot(
     color = interaction(sex, river)
   )
 ) +
-  stat_pointinterval() +
+  stat_pointinterval(size = 1) +
   coord_cartesian(xlim = c(0, 1), expand = F) +
-  # scale_color_manual(
-  #   values = c(
-  #     I(rgb(120, 90, 236, maxColorValue = 255)),
-  #     I(rgb(186, 141, 228, maxColorValue = 255)),
-  #     I(rgb(222, 132, 11, maxColorValue = 255)),
-  #     I(rgb(210, 182, 144, maxColorValue = 255))
-  #   )
-  # ) +
+  scale_color_brewer(
+    type = 'qual',
+    palette = 'Dark2',
+    labels = c(
+      'F.James',
+      'M.James',
+      'F.Nanticoke',
+      'M.Nanticoke',
+      'M.Rappahannock',
+      'F.York',
+      'M.York'
+    )
+  ) +
+  scale_fill_brewer(
+    type = 'qual',
+    palette = 'Dark2',
+    labels = c(
+      'F.James',
+      'M.James',
+      'F.Nanticoke',
+      'M.Nanticoke',
+      'M.Rappahannock',
+      'F.York',
+      'M.York'
+    )
+  ) +
   labs(
     y = "Fish",
     x = "Probability of consecutive spawning runs",
