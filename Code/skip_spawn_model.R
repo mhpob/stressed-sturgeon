@@ -469,7 +469,7 @@ marginaleffects::predictions(mod, by = "sex")
 marginaleffects::predictions(mod, by = "river")
 df <- marginaleffects::avg_predictions(
   mod,
-  variables = list(last_spawn = c(1, 2, 3, 4, 5, 6, 7), sex = c("F", "M"))
+  variables = list(last_spawn = 1:6, sex = c("F", "M"))
 ) |>
   data.frame()
 
@@ -518,23 +518,10 @@ marginaleffects::plot_predictions(mod, by = c("sex", "river")) +
     labels = c('James', 'Nanticoke', 'Rappahannock', 'York')
   ) +
   theme_minimal() +
-  theme(legend.position = "none") #+
-# scale_color_manual(
-#   values = c(
-#     I(rgb(120, 90, 236, maxColorValue = 255)),
-#     # I(rgb(186, 141, 228,  maxColorValue = 255)),
-#     I(rgb(222, 132, 11, maxColorValue = 255))
-#     # I(rgb(210, 182, 144,  maxColorValue = 255))
-#   )
-# ) +
-# scale_fill_manual(
-#   values = c(
-#     I(rgb(120, 90, 236, maxColorValue = 255)),
-#     # I(rgb(186, 141, 228,  maxColorValue = 255)),
-#     I(rgb(222, 132, 11, maxColorValue = 255))
-#     # I(rgb(210, 182, 144,  maxColorValue = 255))
-#   )
-# )
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        strip.text = element_text(size = 14)) 
 
 library(patchwork)
 B + A + plot_layout(axes = "collect", widths = c(1, 2))
@@ -542,18 +529,23 @@ B + A + plot_layout(axes = "collect", widths = c(1, 2))
 # prob of spawning by sex and river
 marginaleffects::avg_predictions(mod, by = c("sex"))
 df <- marginaleffects::avg_predictions(
-  mod_int13,
+  mod,
   variables = list(last_spawn = 1, sex = c("F", "M"))
+) |>
+  data.frame()
+marginaleffects::avg_predictions(
+  mod,
+  variables = list(last_spawn = 1)
 ) |>
   data.frame()
 
 # prob of females spawning after 4.5yrs from Stevenson 1997
 marginaleffects::avg_predictions(
   mod,
-  variables = list(last_spawn = c(3, 4.5, 6), sex = c("F"))
+  variables = list(last_spawn = 1:6, sex = c("F", "M"))
 )
 
-marginaleffects::avg_predictions(mod_int13, by = c("sex"))
+marginaleffects::avg_predictions(mod_int, by = c("sex"))
 
 library(patchwork)
 sex <- conditional_effects(mod, "sex")
