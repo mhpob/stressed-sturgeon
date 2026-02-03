@@ -1,0 +1,323 @@
+model {
+
+
+###########################
+## PART I. Jolly-Seber for marked individuals 
+
+## Jolly-seber (superpopulation formulation) for marked individuals
+for(i in 1:G){                       # G is fixed and G>>Msuper
+  w[i] ~ dbern (psi)                  # inclusion in superpop
+  z[i,1] ~ dcat(xi[1:6])              # starting state (this now includes 6)       
+  u[i,1] <- z[i,1]*w[i]               # latent process of interest
+  y[i,1] ~ dcat(Rho[z[i,1],i,1,1:5])  # capture history data at k=1 (now 1-5)
+  
+  
+  LNR[i,1] <- u[i,1]==2               # 1 if in Nanticoke at k. 0 otherwise
+  LMC[i,1] <- u[i,1]==3               # 1 if in LMC at k. 0 otherwise
+  UMC[i,1] <- u[i,1]==4               # 1 if in UMC at k. 0 otherwise
+  UNR[i,1] <- u[i,1]==5               # 1 if in UNR at k. 0 otherwise
+  inSystem[i,1] <- LNR[i,1]+LMC[i,1]+UMC[i,1]+UNR[i,1] 
+  ever.alive[i,1] <- u[i,1]>1         # 1 if ever alive by k
+  recruit[i,1] <- u[i,1]==2           # Recruit on day 1
+  
+  for(k in 2:K){
+    z[i,k] ~ dcat(Omega[z[i,k-1], k-1, 1:6]) # survives if alive, recruits if not yet entered (now includes 6?)
+    u[i,k] <- z[i,k]*w[i]               # latent process of interest
+    y[i,k] ~ dcat(Rho[z[i,k],i,k,1:5])   # prob. detected if alive (now 1-5)
+    LNR[i,k] <- u[i,k]==2               # 1 if in Nanticoke at k. 0 otherwise
+    LMC[i,k] <- u[i,k]==3               # 1 if in LMC at k. 0 otherwise
+    UMC[i,k] <- u[i,k]==4               # 1 if in UMC at k. 0 otherwise
+    UNR[i,k] <- u[i,k]==5               # 1 if in UNR at k. 0 otherwise
+    inSystem[i,k] <- LNR[i,k]+LMC[i,k]+UMC[i,k]+UNR[i,k]
+    ever.alive[i,k] <- u[i,k]>1         # 1 if ever alive by k
+    recruit[i,k] <-(u[i,k-1]==1)*(u[i,k]>1)    # Recruit on day k
+  }#K
+}#i
+
+### PART Ia. Distribution of individuals on day 1
+# Recruitment from superpopulation (gamma parameterization of dirichlet prior)
+for(k in 1:K){
+  eb[k] <- exp(beta1*k) # entry prob varies as a linear function of day.
+  b[k] <- eb[k]/sum(eb[1:K]) # recruitment probability on day k
+}
+
+# JS recruitment (derived) conditional on data augmentation value
+
+eta[1] <- b[1]
+
+##for(k in 2:K){
+##  eta[k] <- b[k]/(1 - sum(b[1:(k-1)]) )
+##}
+
+## Adjustments to try and keep the model from breaking; Gemini. See also changes in R
+for(k in 2:K){
+  # 1. Calculate the remaining 'stick' to be broken
+  # max() prevents a negative denominator if sum(b) drifts > 1
+  stick_rem[k] <- max(0.0000001, 1 - sum(b[1:(k-1)]))
+  
+  # 2. Calculate eta with a clamp
+  # min() prevents eta from being > 1, which crashes dbin
+  eta[k] <- min(0.999999, b[k] / stick_rem[k])
+}
+
+
+
+# start distirbution of superpopulation (not entered, LNR, LMC, UMC,UNR)
+xi <-c(1-eta[1], eta[1]*theta[1,2], eta[1]*theta[1,3], eta[1]*theta[1,4],eta[1]*theta[1,5],0)
+
+### PART Ib. Movement among reaches (come back to)
+# If enter system by day one, prob of in reach 2:5
+theta[1,1] <- 0
+theta[1,2:5] ~ ddirch(a[2:5]) # LNR, LMC, UMC, UNR
+
+# If enter in system after day one, prob of in reach 2:5
+entryProb[1:4] ~ ddirch(a[1:4]) 
+theta[2,1] <- 0
+theta[2,2] <- entryProb[1]
+theta[2,3] <- entryProb[2]
+theta[2,4] <- entryProb[3] # Allowed NE -> UMC, may need to revisit
+theta[2,5] <- entryProb[4] # Allowed NE -> UNR, may need to revisit
+# transitions among river reaches conditional on being in the system
+piTran[1,1:5] <- rep(0,5)  # not entered, so transition probablities are irrelavant.
+ 
+
+# LNR fish may move to 
+piTran[2,1] <- 0                  # not entered
+piTran[2,2:5] ~ ddirch(a[2:5])    # move everywhere
+
+
+# LMC fish may move to 
+piTran[3,1] <- 0                  # not entered
+piTran[3,2:5] ~ ddirch(a[2:5]) # LNR, LMC, UMC, UNR
+
+# UMC fish may move to
+piTran[4,1] <- 0                  # not entered 
+piTran[4,2:5] ~ ddirch(a[2:5])
+
+
+# UNR fish may move to
+piTran[5,1] <- 0                  # not entered
+piTran[5,2:5] ~ ddirch(a[2:5])
+
+## Part Ic. State matrix
+for(k in 2:K){
+  ## not yet entered (state=1) to ...
+  Omega[1,k-1,1] <- (1-eta[k])           # not yet entered
+  Omega[1,k-1,2] <- eta[k]*theta[2,2]   # entered LNR
+  Omega[1,k-1,3] <- eta[k]*theta[2,3]   # entered LMC
+  Omega[1,k-1,4] <- eta[k]*theta[2,4]   # entered UMC
+  Omega[1,k-1,5] <- eta[k]*theta[2,5]   # entered UNR
+  Omega[1,k-1,6] <- 0                    # exited system
+  
+  ## in LNR (state=2) to ...
+  Omega[2,k-1,1] <- 0                      # not yet entered
+  Omega[2,k-1,2] <- phi[k-1]*piTran[2,2]   # remain in LNR
+  Omega[2,k-1,3] <- phi[k-1]*piTran[2,3]   # move to LMC
+  Omega[2,k-1,4] <- phi[k-1]*piTran[2,4]   # move to UMC
+  Omega[2,k-1,5] <- phi[k-1]*piTran[2,5]   # move to UNR
+  Omega[2,k-1,6] <- 1-phi[k-1]             # exit system
+  
+  ## in LMC (state=3) to ...
+  Omega[3,k-1,1] <- 0                      # not yet entered
+  Omega[3,k-1,2] <- phi[k-1]*piTran[3,2]   # move to UNR
+  Omega[3,k-1,3] <- phi[k-1]*piTran[3,3]   # remain in LMC
+  Omega[3,k-1,4] <- phi[k-1]*piTran[3,4]   # move to UMC
+  Omega[3,k-1,5] <- phi[k-1]*piTran[3,5]   # move to UNR
+  Omega[3,k-1,6] <- 1-phi[k-1]             # exit system
+  
+  
+  ## in UMC (state=4) to ...
+  Omega[4,k-1,1] <- 0                      # not yet entered
+  Omega[4,k-1,2] <- phi[k-1]*piTran[4,2]   # move to UNR
+  Omega[4,k-1,3] <- phi[k-1]*piTran[4,3]   # move to LMC
+  Omega[4,k-1,4] <- phi[k-1]*piTran[4,4]   # remain in UMC
+  Omega[4,k-1,5] <- phi[k-1]*piTran[4,5]   # move to UNR
+  Omega[4,k-1,6] <- 1-phi[k-1]             # exit system
+  
+  ## in UNR (state=5) to ...
+  Omega[5,k-1,1] <- 0                      # not yet entered
+  Omega[5,k-1,2] <- phi[k-1]*piTran[5,2]   # move to UNR
+  Omega[5,k-1,3] <- phi[k-1]*piTran[5,3]   # move to LMC
+  Omega[5,k-1,4] <- phi[k-1]*piTran[5,4]   # remain in UMC
+  Omega[5,k-1,5] <- phi[k-1]*piTran[5,5]   # move to UNR
+  Omega[5,k-1,6] <- 1-phi[k-1]             # exit system
+  
+  
+  ## in exited system (state=6) to ...
+  Omega[6,k-1,1] <- 0                    # not yet entered
+  Omega[6,k-1,2] <- 0                    # move to LNR
+  Omega[6,k-1,3] <- 0                    # move to LMC
+  Omega[6,k-1,4] <- 0                    # move to UMC
+  Omega[6,k-1,5] <- 0                    # move to UNR
+  Omega[6,k-1,6] <- 1                    # exited system
+}
+
+## Part Id. telem observation matrix
+for(i in 1:G){
+  for(k in 1:K){
+    Rho[1, i,k, 1] <- 1    # not detected
+    Rho[1, i,k, 2] <- 0    # UNR
+    Rho[1, i,k, 3] <- 0    # LMC
+    Rho[1, i,k, 4] <- 0    # UMC
+    Rho[1, i,k, 5] <- 0    # UNR
+    
+    ## in LNR (state=2) to ...
+    Rho[2, i,k, 1] <- 1-pbar[2]*w[i]*TelemIndicator[i, k]    # not detected
+    Rho[2, i,k, 2] <- pbar[2]*w[i]*TelemIndicator[i, k]      # LNR
+    Rho[2, i,k, 3] <- 0    # LMC
+    Rho[2, i,k, 4] <- 0    # UMC
+    Rho[2, i,k, 5] <- 0    # UNR
+    
+    ## in LMC (state=3) to ...
+    Rho[3, i,k, 1] <- 1-pbar[3]*w[i]*TelemIndicator[i, k]    # not detected
+    Rho[3, i,k, 2] <- 0      # LNR
+    Rho[3, i,k, 3] <- pbar[3]*w[i]*TelemIndicator[i, k]      # LMC
+    Rho[3, i,k, 4] <- 0    # UMC
+    Rho[3, i,k, 5] <- 0    # UNR
+    
+    ## in UMC (state=4) to ...
+    Rho[4, i,k, 1] <- 1-pbar[4]*w[i]*TelemIndicator[i, k]    # not detected
+    Rho[4, i,k, 2] <- 0    # LNR
+    Rho[4, i,k, 3] <- 0    # LMC
+    Rho[4, i,k, 4] <- pbar[4]*w[i]*TelemIndicator[i, k]      # UMC
+    Rho[4, i,k, 5] <- 0    # UNR
+    
+    ## in UNR (state=5) to ...
+    Rho[5, i,k, 1] <- 1-pbar[5]*w[i]*TelemIndicator[i, k]    # not detected
+    Rho[5, i,k, 2] <- 0    # LNR
+    Rho[5, i,k, 3] <- 0    # LMC
+    Rho[5, i,k, 4] <- 0    # UMC
+    Rho[5, i,k, 5] <- pbar[5]*w[i]*TelemIndicator[i, k]      # UNR
+    
+    ## Exited (state=6) to ...
+    Rho[6, i,k, 1] <- 1    # not detected
+    Rho[6, i,k, 2] <- 0    # LNR
+    Rho[6, i,k, 3] <- 0    # LMC
+    Rho[6, i,k, 4] <- 0    # UMC
+    Rho[6, i,k, 5] <- 0    # UNR
+  }
+}
+###########################
+## PART II. SSS count data
+## ADAPTED BY MOB FOR MULTIPLE SSS REACHES
+
+for(k in 1:Ksss){  # surveyed day and corresponding reach
+  for(v in 1:V){ # number of passes per surveyed day
+    sssMat[k,v] ~ dbin(p_sss, Nreach[sssSurveyOcc[k], 3])
+  }
+}
+
+
+
+###########################
+## PART III.  Population (system-wide, marked+unmarked) level recruitment, persistence, and abundance
+NsuperK ~ dpois(LambdaSuper)  # super population of all individuals that used study area
+
+# distribute individuals according to those processes
+# Nreach[1:6,1]~dumulti(xi[1:6], N[1])
+# JAGS does not allow stochastic N in dmulti. 
+# Instead, Nreach[s,k] is estimated from the expected probablities for each day (conditional on NsuperK, starting distribution (pi1), staying probability (phi[k]), and transition probabilties (piTrans)
+# In theory this could also be done using custom samplers (e.g., Link et al. 2018) or a series of conditional binomials
+# the former is not possibe in JAGS and we explored the latter but mixing was terrible.
+
+# Occasion 1
+expectedProbabilities[1,1:6] <- xi[1:6] # starting probablities
+for(k in 2:K){
+  expectedProbabilities[k,1:6] <- expectedProbabilities[k-1,1:6]%*%Omega[1:6,k-1,1:6]
+}
+
+# number of individuals in each state (1=not entered, 2=Nant, ... 6=exited) on each day
+Nreach[1,1] ~ dbin(expectedProbabilities[1,1], NsuperK)  # not yet entered on day 1 if in superpopulation
+for(j in 2:(J-1)){
+  Nreach[1,j] ~ dbin(min(0.99999, expectedProbabilities[1,j]/(1-sum(expectedProbabilities[1,1:(j-1)]))), NsuperK-sum(Nreach[1,1:(j-1)]) )
+  #min(.99999) is required as sometimes this values goes to 1.00000000 and throws an error
+}#s
+Nreach[1,J] <- NsuperK-sum(Nreach[1,1:(J-1)])
+
+# for occasions 2:(K-1)
+for(k in 2:(K-1)){
+  Nreach[k,1] ~ dbin(expectedProbabilities[k,1], NsuperK)  # not yet entered on day k if in superpopulation
+  for(j in 2:(J-1)){
+    Nreach[k,j] ~ dbin(min(.99999, expectedProbabilities[k,j]/(1-sum(expectedProbabilities[k,1:(j-1)]))), NsuperK-sum(Nreach[k,1:(j-1)]) )
+  }#s
+  Nreach[k,J] <- NsuperK-sum(Nreach[k,1:(J-1)])
+}#k
+
+# for occasions K,all individuals must have entered
+for(k in K:K){
+  Nreach[k,1] <-0  # no yet entered on day K if in superpopulation.
+  for(j in 2:(J-1)){
+    Nreach[k,j] ~ dbin(min(.99999, expectedProbabilities[k,j]/(1-sum(expectedProbabilities[k,1:(j-1)]))), NsuperK-sum(Nreach[k,1:(j-1)]) )
+  }#s
+  Nreach[k,J] <- NsuperK-sum(Nreach[k,1:(J-1)])
+}#k
+
+###########################
+## Part IV Derived abundances 
+for(k in 1:K){
+  # marked population
+  M[k] <- sum(inSystem[1:G,k])                 # total marked individuals in system on day k
+  Mlnr[k] <- sum(LNR[1:G,k])                   # total marked individuals in LNR on day k
+  Mlmc[k] <- sum(LMC[1:G,k])                   # total marked individuals in LMC on day k
+  Mumc[k] <- sum(UMC[1:G,k])                   # total marked individuals in UMC on day k
+  Mmc[k] <- Mlmc[k]+Mumc[k]                    # total marked individuals in mc on day k
+  Munr[k] <- sum(UNR[1:G,k])                   # total marked individuals in UNR on day k
+  Mnan[k] <- Mlnr[k]+Munr[k]                   # total marked individuals in NR on day k
+  
+  Msuper[k] <- sum(ever.alive[1:G,k])          # number of marked individuals that used study area on or before k
+  mR[k] <- sum(recruit[1:G,k])                 # number of new marked recruits on day k
+  
+  # total superpopulation by day (i.e., unique individuals that used system by day k)
+  Nsuper[k] <- NsuperK-Nreach[k,1]                # total individuals that recruited into study area on or before k. This is the total superpopulation minus those that have not yet recruited. 
+  N[k] <- sum(Nreach[k,2:5])                      # number of fish in the system
+  Nmc[k] <- sum(Nreach[k,3:4])                    # number in MC (lmc+umc). 
+  #Nnan[k] <- sum(Nreach[k,c(2,5)])                # number in NR (lnr+unr). 
+  Nnan[k] <- sum(Nreach[k,2]) + sum(Nreach[k,5])               # number in NR (lnr+unr). 
+}
+
+# expected Recruits - number of fish that enter the system. i.e., from state not yet entered to one of the entered states 
+R[1] ~ dbin(eta[1], NsuperK)
+for(k in 2:(K-1)){
+  pool_rem[k] <- max(0, NsuperK - sum(R[1:(k-1)]))
+  R[k] ~ dbin(eta[k], pool_rem[k])
+  
+  #Original before Gemini change:
+  #R[k] ~ dbin(eta[k], NsuperK-sum(R[1:(k-1)]) ) # note that this is not by reach.             
+}
+R[K] <- max(0, NsuperK-sum(R[1:(K-1)]))  # note that this is not by reach.     
+
+
+
+
+###########################
+## Part V. Priors and constraints 
+
+# JS marked popultion priors
+psi ~ dbeta(0.0001,1)  # inclusion in Nanticoke basin marked superpopulaiton 
+
+# Telemetry detection probablity
+pbar[1] <- 0          # telemetry detection prob. if in state: not-entered
+pbar[2]~dbeta(1,1)    # telemetry detection prob. if in state: lnr
+pbar[3]~dbeta(1,1)    # telemetry detection prob. if in state: lmc
+pbar[4]~dbeta(1,1)    # telemetry detection prob. if in state: umc
+pbar[5]~dbeta(1,1)    # telemetry detection prob. if in state: unr
+pbar[6]<-0            # telemetry detection prob. if in state: exited system
+
+# recruitment priors - relationship of day and recruitment prob. 
+beta1~dnorm(0,.1)
+
+# prob of staying in the system is a function of temp on day k
+for(k in 1:K){
+  logit(phi[k]) <- alpha0 + alpha1*temp[k]
+}
+alpha0 <- logit(phi0)
+phi0~dbeta(1,1)         # prob. of staying in system
+alpha1~dnorm(0,.1)       # relationship between prob of staying and time
+
+# sss detection prior
+p_sss ~dbeta(1,1) # side-scan sonar detection prob. 
+
+# super population of all individuals that used study area prior 
+LambdaSuper ~ dgamma(0.1,0.1) 
+
+}#model
