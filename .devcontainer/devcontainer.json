@@ -1,0 +1,28 @@
+{
+  "name": "R devcontainer",
+  "image": "ghcr.io/mhpob/nan_census_21:latest",
+  // "features": {
+  //   "ghcr.io/rocker-org/devcontainer-features/r-apt:0": {
+  //     "vscodeRSupport": "full",
+  //     "installRadian": "true"
+  //   }
+  // }
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "reditorsupport.r"
+      ],
+      "settings": {
+				"r.bracketedPaste": true,
+				"r.plot.useHttpgd": true
+      }
+    }
+  },
+
+  "postCreateCommand": |
+    "Rscript -e 'install.packages(\"languageserver\")' && \
+    Rscript -e 'install.packages(\"httpgd\", repos = c(\"https://r-multiverse-staging.r-universe.dev\"))' && \
+    echo 'options(httpgd.host = \"0.0.0.0\", httpgd.port = 8888)' >> /etc/R/Rprofile.site",
+
+  // "forwardPorts": [8888]
+}

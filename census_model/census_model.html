@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Parsing the Coleman et al.&nbsp;2024 spawning run model</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="census_model_files/libs/clipboard/clipboard.min.js"></script>
+<script src="census_model_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="census_model_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="census_model_files/libs/quarto-html/popper.min.js"></script>
+<script src="census_model_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="census_model_files/libs/quarto-html/anchor.min.js"></script>
+<link href="census_model_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="census_model_files/libs/quarto-html/quarto-syntax-highlighting-0815c480559380816a4d1ea211a47e91.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="census_model_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="census_model_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="census_model_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Parsing the Coleman et al.&nbsp;2024 spawning run model</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nimble)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>nimble version 1.3.0 is loaded.
+For more information on NIMBLE and a User Manual,
+please visit https://R-nimble.org.
+
+Note for advanced users who have written their own MCMC samplers:
+  As of version 0.13.0, NIMBLE's protocol for handling posterior
+  predictive nodes has changed in a way that could affect user-defined
+  samplers in some situations. Please see Section 15.5.1 of the User Manual.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'nimble'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:stats':
+
+    simulate</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:base':
+
+    declare</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(jagsUI)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="telemetry-jolly-seber-model-for-marked-individuals" class="level2">
+<h2 class="anchored" data-anchor-id="telemetry-jolly-seber-model-for-marked-individuals">Telemetry: Jolly-Seber model for marked individuals</h2>
+<section id="superpopulation" class="level3">
+<h3 class="anchored" data-anchor-id="superpopulation">Superpopulation</h3>
+<p>We have tagged some number of fish, <span class="math inline">\(n\)</span>, which is a subset of the actual population, <span class="math inline">\(N_s\)</span>, the “superpopulation”. The manuscripts cites a number of papers that use “data augmentation”. In short, if we concatenate our data with a number of imaginary individuals that have no detection history, we can estimate the proportion of the imaginary individuals that are representative of the actual population and the proportion that are outright fake. My understanding is that this helps in a number of ways, one of which being that, by increasing the dataset, we are operating with a fixed matrix – computationally and theoretically it is easier to estimate the proportion of this fixed data that is real, as opposed to estimating the size of the matrix, itself.</p>
+<p>In the figure below from Kery and Schaub, 2011, the data is inflated to a total of “<span class="math inline">\(M\)</span>” individuals; we called this “<span class="math inline">\(G\)</span>” individuals in Coleman et al.&nbsp;2024.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="census_model_imgs/augmentation.png" class="img-fluid figure-img" width="311"></p>
+<figcaption>From Kery and Schaub, 2011. Bayesian Population Analysis using WinBUGS.</figcaption>
+</figure>
+</div>
+<p>The probability of any one of these <span class="math inline">\(G\)</span> individuals actually being part of the superpopulation is <span class="math inline">\(\Psi\)</span>: this is a parameter we want to estimate. Whether an individual is modeled as being part of <span class="math inline">\(N_s\)</span> is indicated by a variable <span class="math inline">\(w\)</span>, that we provide, which takes values of 0 (not tagged) or 1 (tagged) and is Bernoulli-distributed. This gives eq. 1:</p>
+<p><span class="math display">\[
+w_i \sim Bernoulli(\Psi)
+\]</span></p>
+<p>As a toy example of estimating <span class="math inline">\(\Psi\)</span>, imagine we tagged 10 fish and augmented the data with 5 “imaginary” fish. We would expect that there is a <span class="math inline">\(66.\overline{6}\%\)</span> chance that a fish is real, as <span class="math inline">\(10 / (10 + 5) = 0.\overline{6}\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>toy_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">w =</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">10</span>), <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">5</span>)))</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>logit_psi <span class="ot">&lt;-</span> <span class="fu">glm</span>(</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  w <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"logit"</span>),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> toy_data</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Psi on logit (link) scale</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(logit_psi)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(Intercept) 
+  0.6931472 </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Psi on probability (response) scale</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">binomial</span>()<span class="sc">$</span><span class="fu">linkinv</span>(<span class="fu">coef</span>(logit_psi))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(Intercept) 
+  0.6666667 </code></pre>
+</div>
+</div>
+<p>Great, we’ve estimated a fake <span class="math inline">\(\Psi\)</span>! This is written as following in the provided JAGS code, which is sent to JAGS via the <code>jagsUI</code> package:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>my_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Augmented "population"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">G =</span> <span class="dv">15</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Data for "latent inclusion parameter"</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">w =</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">10</span>), <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">5</span>))</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">textConnection</span>(</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"model{</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="st">    # Vague prior for Psi</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="st">    Psi ~ dbeta(0.0001,1)</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="st">   </span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="st">    # For each individual in the augmented data (G)</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="st">    for(i in 1:G){</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="st">      w[i] ~ dbern(Psi)</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="st">    }</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="st">  }"</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>jags_fit <span class="ot">&lt;-</span> jagsUI<span class="sc">::</span><span class="fu">jags</span>(</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> my_data,</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">model.file =</span> model,</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">parameters.to.save =</span> <span class="st">'Psi'</span>,</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">n.chains =</span> <span class="dv">1</span>,</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">n.iter =</span> <span class="dv">5000</span>,</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">n.burnin =</span> <span class="dv">1000</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(jags_fit)</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a><span class="fu">sapply</span>(jags_fit[<span class="fu">c</span>(<span class="st">'q2.5'</span>, <span class="st">'q50'</span>, <span class="st">"q97.5"</span>)], <span class="cf">function</span>(x) <span class="fu">binomial</span>()<span class="sc">$</span><span class="fu">linkinv</span>(x<span class="sc">$</span>Psi))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>NIMBLE seems to be mostly the same (named arguments are just me being overly-specific).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>my_data <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">w =</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">10</span>), <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">5</span>)))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">nimbleCode</span>({</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  Psi <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="at">shape1 =</span> <span class="fl">0.0001</span>, <span class="at">shape2 =</span> <span class="dv">1</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>G){</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    w[i] <span class="sc">~</span> <span class="fu">dbern</span>(<span class="at">prob =</span> Psi)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>nimble_fit <span class="ot">&lt;-</span> <span class="fu">nimbleMCMC</span>(</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">code =</span> model,</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">constants =</span> <span class="fu">list</span>(<span class="at">G =</span> <span class="dv">15</span>),</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> my_data,</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">inits =</span> <span class="fu">list</span>(<span class="at">Psi =</span> <span class="fu">runif</span>(<span class="dv">1</span>, <span class="fl">0.6</span>, <span class="fl">0.9</span>)),</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">monitors =</span> <span class="st">'Psi'</span>,</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">nchains =</span> <span class="dv">1</span>,</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">niter =</span> <span class="dv">5000</span>,</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">nburnin =</span> <span class="dv">1000</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="fu">binomial</span>()<span class="sc">$</span><span class="fu">linkinv</span>(</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">quantile</span>(nimble_fit, <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span>))</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Stan is quite different:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>data {</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  int<span class="sc">&lt;</span>lower<span class="ot">=</span><span class="dv">1</span><span class="sc">&gt;</span> G;</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  int<span class="sc">&lt;</span>lower<span class="ot">=</span><span class="dv">0</span>, upper <span class="ot">=</span><span class="dv">1</span><span class="sc">&gt;</span> w[G];</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>parameters {</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  real<span class="sc">&lt;</span>lower<span class="ot">=</span><span class="dv">0</span>, upper<span class="ot">=</span><span class="dv">1</span><span class="sc">&gt;</span> Psi;</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>model {</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  Psi <span class="sc">~</span> <span class="fu">beta</span>(<span class="fl">0.0001</span>, <span class="dv">1</span>);</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>G){</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    w[k] <span class="sc">~</span> <span class="fu">bernoulli</span>(Psi);</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="current-location-of-individuals" class="level3">
+<h3 class="anchored" data-anchor-id="current-location-of-individuals">Current location of individuals</h3>
+<p>The location of tagged individuals was modeled as a function of three things:</p>
+<ol type="1">
+<li>Location on the first day, August 15 (<span class="math inline">\(\xi\)</span>). A function of:</li>
+</ol>
+<ol type="a">
+<li>The probability of fish having already entered (<span class="math inline">\(\eta_1\)</span>)</li>
+<li>The probability of a fish being in a given reach (<span class="math inline">\(\theta_1^{2:5}\)</span>)</li>
+</ol>
+<ol start="2" type="1">
+<li>Movement (<span class="math inline">\(\Omega\)</span>) up until the current day (<span class="math inline">\(k\)</span>). A function of:</li>
+</ol>
+<ol type="a">
+<li>The probability of a fish entering on that day (<span class="math inline">\(\eta_k\)</span>)</li>
+<li>The probability of a fish being in a given reach (<span class="math inline">\(\theta_2^{2:5}\)</span>, note this is not day-specific)</li>
+<li>The probability of moving between reaches (<span class="math inline">\(\pi^{j,l}\)</span> for reach <span class="math inline">\(j\)</span> to <span class="math inline">\(l\)</span>)</li>
+<li>The probability of fish in the LNR remaining in the river on day <span class="math inline">\(k\)</span> (<span class="math inline">\(\phi_k\)</span>). A function of water temperature (<span class="math inline">\(logit(\phi_k) = \alpha_0 + \alpha_1 \times temp_k\)</span>).</li>
+</ol>
+<ol start="3" type="1">
+<li>Time since the first day (Fish are less liekly to enter as time goes on)</li>
+</ol>
+<ol type="a">
+<li>Effect is modeled by <span class="math inline">\(mlogit(b_k) \sim \beta k\)</span></li>
+</ol>
+<p>It was assumed that a sturgeon could be in one of six locations (“states”), four of which are sections of the Nanticoke-Marshyhope system (“reaches”):</p>
+<ol type="1">
+<li>Not entered the Nanticoke (“NE”)</li>
+<li>Lower Nanticoke (“LNR”)</li>
+<li>Lower Marshyhope (“LMC”)</li>
+<li>Upper Marshyhope (“UMC”)</li>
+<li>Upper Nanticoke (“UNR”)</li>
+<li>Exited the Nanticoke (not abbreviated in the manuscript, but I’ll call it “EX”)</li>
+</ol>
+<p>Movement between states was constrained according to a handful of rules:</p>
+<ol type="1">
+<li>A sturgeon could not have exited if it hadn’t yet entered.</li>
+<li>If a sturgeon was ever detected in the LMC in a day, it was assigned to the LMC for that day. This was to allow the VPS and side-scan sonar (SSS), which both took place in the LMC, to provide information if it was available.</li>
+<li>According to #2, it was not possible to move between UMC and LNR or UNR in a single day, as it would have have had to move through LMC.</li>
+<li>If a fish was detected in LNR and UNR (but not in the Marshyhope), it was assigned to UNR due to its higher likelihood of undertaking a spawning run.</li>
+<li>A fish can only exit after being in the LNR.</li>
+<li>If a fish exited the Nanticoke river, it could not return.</li>
+</ol>
+<section id="location-on-the-first-day-xi" class="level4">
+<h4 class="anchored" data-anchor-id="location-on-the-first-day-xi">Location on the first day (<span class="math inline">\(\xi\)</span>)</h4>
+<p>On the first day, it is assumed that fish could not have already exited, so we are only concerned with the first five states. The probability that a fish had already entered by day <span class="math inline">\(1\)</span> is defined as <span class="math inline">\(\eta_1\)</span>. If a fish had entered by day <span class="math inline">\(1\)</span>, the probability of it being in any one of the reaches was given by a reach-specific value of <span class="math inline">\(\theta\)</span>, defined as <span class="math inline">\(\theta_1^{2:5}\)</span>, where <span class="math inline">\(1\)</span> refers to “the first day” and <span class="math inline">\(2:5\)</span> refer to the LNR, LMC, UMC, and UNR, respectively, as indexed above.</p>
+<p><span class="math display">\[
+\xi_{NE:EX} = (1-\eta_1, \eta_1\theta_1^{LNR}, \eta_1\theta_1^{LMC}, \eta_1\theta_1^{UMC}, \eta_1\theta_1^{UNR}, 0)
+\]</span> Or, as in the manuscript:</p>
+<p><span class="math display">\[
+\xi_{1:6} = (1-\eta_1, \eta_1\theta_1^2, \eta_1\theta_1^3, \eta_1\theta_1^4, \eta_1\theta_1^5, 0)
+\]</span></p>
+</section>
+<section id="location-on-other-days" class="level4">
+<h4 class="anchored" data-anchor-id="location-on-other-days">Location on other days</h4>
+<section id="fish-entering-after-the-first-day" class="level5">
+<h5 class="anchored" data-anchor-id="fish-entering-after-the-first-day">Fish entering after the first day</h5>
+<section id="probability-of-entering" class="level6">
+<h6 class="anchored" data-anchor-id="probability-of-entering">Probability of entering</h6>
+<p>In order to coerce the probability of entry (<span class="math inline">\(\eta_k\)</span>) to become smaller with increasing <span class="math inline">\(k\)</span>, <span class="math inline">\(\eta_{2:K}\)</span> was modeled as a multinomial logistic function of day (<span class="math inline">\(k\)</span>). Think of a multinomial logistic distribution as a generalization of the binomial distribution: where the binomial distribution only has two categories, multinomial distribution can have any number of categories. Unfortunately, this makes the inverse link function (logit) a little bit more confusing. With two categories, you can calculate it as <span class="math inline">\(\frac{1}{1+exp(-\alpha)}\)</span>; however, with multiple categories, it is <span class="math inline">\(\frac{exp(\alpha_n)}{\sum_{i=1}^Nexp(\alpha_t)}\)</span>.</p>
+<p>Here, <span class="math inline">\(mlogit(b_k) \sim \beta k\)</span>, so, applying the inverse function:</p>
+<p><span class="math display">\[
+b_k = \frac{exp(\beta k)}{\sum_{t=1}^{K} exp(\beta t)}
+\]</span></p>
+<p>If we switched the <span class="math inline">\(b\)</span>s with <span class="math inline">\(\eta\)</span>s this <em>could have</em> been the end of it, but some magic needed to happen to “accommodate the data augmentation process” (manuscript) and make it “conditional on data augmentation value” (code); as of right now, I’m not sure what that means in concept. Functionally this means we apply that inverse function again for days that are not the first day as seen in equations 2 and 3 of Coleman et al.&nbsp;2024, as well as model code.</p>
+<p><span class="math display">\[
+\eta_1 = b_1 \\
+\eta_k = \frac{b_k}{1-\sum_{t=1}^{k-1}b_t}, k=2...K
+\]</span></p>
+<p>This model in JAGS/BUGS is below. Note that in JAGS, the normal distribution is specified with a mean and precision (not standard deviation). Precision, <span class="math inline">\(\tau\)</span> is the inverse of variance: <span class="math inline">\(\tau = 1/\sigma^2\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Prior for beta</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  beta <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="at">mean =</span> <span class="dv">0</span>, <span class="at">precision =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">10</span>)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate b</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    b[k] <span class="ot">&lt;-</span> <span class="fu">exp</span>(beta <span class="sc">*</span> k) <span class="sc">/</span> <span class="fu">sum</span>(<span class="fu">exp</span>(beta <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>K))</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eta_1 = b_1</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  eta[<span class="dv">1</span>] <span class="ot">&lt;-</span> b[<span class="dv">1</span>]</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Adjust all other days for augmentation</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>K){</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    eta[k] <span class="ot">&lt;-</span> b[k] <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">sum</span>(b[<span class="dv">1</span><span class="sc">:</span>(k<span class="dv">-1</span>)]))</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>An example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">numeric</span>(K)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>eta <span class="ot">&lt;-</span> <span class="fu">numeric</span>(K)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Prior for beta</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  beta <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="at">mean =</span> <span class="dv">0</span>, <span class="fu">sqrt</span>(<span class="dv">10</span>))</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate b</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    b[k] <span class="ot">&lt;-</span> <span class="fu">exp</span>(beta <span class="sc">*</span> k) <span class="sc">/</span> <span class="fu">sum</span>(<span class="fu">exp</span>(beta <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>K))</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eta_1 = b_1</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  eta[<span class="dv">1</span>] <span class="ot">&lt;-</span> b[<span class="dv">1</span>]</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Adjust all other days for augmentation</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>K){</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    eta[k] <span class="ot">&lt;-</span> b[k] <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">sum</span>(b[<span class="dv">1</span><span class="sc">:</span>(k<span class="dv">-1</span>)]))</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>eta</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] 2.465478e-11 3.691846e-10 5.528229e-09 8.278059e-08 1.239570e-06
+ [6] 1.856154e-05 2.779486e-04 4.163204e-03 6.260110e-02 1.000000e+00</code></pre>
+</div>
+</div>
+</section>
+<section id="probability-of-entering-into-a-reach" class="level6">
+<h6 class="anchored" data-anchor-id="probability-of-entering-into-a-reach">Probability of entering into a reach</h6>
+<p>While a fish must enter the system through LNR, it is possible that it can move into other reaches within a day. Because of this, there are various transition rules we must follow, outlined above, when letting it recruit into a reach in the river. Most importantly: LMC if it was detected in LMC or UMC. This means: <span class="math inline">\(\theta_2^{1,4} = 0\)</span>, i.e.: a fish cannot recruit into the river if it hasn’t recruited (1) and it can’t recruit into UMC as it would have to be assigned to LMC.</p>
+<p>Each row’s <span class="math inline">\(\theta\)</span>s to be estimated are given a Dirichlet prior with equal weight to each outcome. That is, each row’s value of <span class="math inline">\(\theta\)</span> will sum to 1, and we start by assuming that any valid (non-zero) transition in that row is equally likely.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># theta is a 2 * 5 matrix</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> <span class="dv">2</span>, <span class="at">ncol =</span> <span class="dv">5</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add constant thetas that don't need to be estimated (zeroes)</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>,<span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># NE to NE</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">2</span>, <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="dv">0</span>  <span class="co"># NE to UMC after day 1 (passes LMC and so must be LMC)</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Dirichlet prior for remaining thetas that need to be estimated</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">1</span>, <span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">4</span>))</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">2</span>, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>)] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>One example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># theta is a 2 * 5 matrix</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> <span class="dv">2</span>, <span class="at">ncol =</span> <span class="dv">5</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add constant thetas that don't need to be estimated (zeroes)</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>,<span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># NE to NE</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">2</span>, <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="dv">0</span>  <span class="co"># NE to UMC after day 1 (passes LMC and so must be LMC)</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Dirichlet prior for remaining thetas that need to be estimated</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">1</span>, <span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>] <span class="ot">&lt;-</span> <span class="fu">rdirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">4</span>))</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  theta[<span class="dv">2</span>, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>)] <span class="ot">&lt;-</span> <span class="fu">rdirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>theta</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     [,1]       [,2]      [,3]      [,4]       [,5]
+[1,]    0 0.40878881 0.2844231 0.2603403 0.04644778
+[2,]    0 0.02208926 0.4082563 0.0000000 0.56965445</code></pre>
+</div>
+</div>
+</section>
+<section id="putting-it-together" class="level6">
+<h6 class="anchored" data-anchor-id="putting-it-together">Putting it together</h6>
+<p>Now we have a similar vector to that outlined above in <span class="math inline">\(\xi_{1:6}\)</span>, but for fish that recruit into the system after day 1. This will make up the first row of <span class="math inline">\(\Omega\)</span>, or the transition matrix between states.</p>
+<p><span class="math display">\[
+(1-\eta_k, \eta_k \theta_2^2, \eta_k \theta_2^3, 0, \eta_k \theta_2^5, 0)
+\]</span></p>
+</section>
+</section>
+<section id="fish-existing-in-the-system-after-the-first-day" class="level5">
+<h5 class="anchored" data-anchor-id="fish-existing-in-the-system-after-the-first-day">Fish existing in the system after the first day</h5>
+<p>Fish have a certain probability of moving between reaches; taken together, these probabilities make up the transition matrix, defined as <span class="math inline">\(\Omega\)</span> in the manuscript. This runs from the six states at time <span class="math inline">\(k\)</span>, as rows, to the six states at time <span class="math inline">\(k+1\)</span>, as columns.</p>
+<p>We’ve already determined the first row, above, which is the transition from not being in the system to some reach within the system. The other rows will be dictated by the already-outlined rules/assumptions and <span class="math inline">\(\pi^{i,j}\)</span>, which is the transition between state/row <span class="math inline">\(i\)</span> and state/column <span class="math inline">\(j\)</span>.</p>
+<p>Like the first row, which is a special case because it <em>adds</em> fish to the river, the second row (transitioning from LNR) is also a special case because it can <em>subtract</em> fish from the river – it is the only reach from which fish can leave. The probability of fish in the LNR remaining in the river on day <span class="math inline">\(k\)</span> is defined as <span class="math inline">\(\phi_k\)</span>, which itself is a binomial function of water temperature: <span class="math inline">\(logit(\phi_k) = \alpha_0 + \alpha_1 \times temp_k\)</span>. JAGS/BUGS model code:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Priors</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="do">## alpha_0 is equal to logit(phi_0), so prior for phi_0</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  phi_0 <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="at">shape1 =</span> <span class="dv">1</span>, <span class="at">shape2 =</span> <span class="dv">1</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="do">## Prior for alpha_1</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  alpha_1 <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="at">mean =</span> <span class="dv">0</span>, <span class="at">precision =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">10</span>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate alpha_0</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  alpha_0 <span class="ot">&lt;-</span> <span class="fu">logit</span>(phi_0)</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate phi_k </span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">logit</span>(phi[k]) <span class="ot">&lt;-</span> alpha_0 <span class="sc">+</span> alpha_1 <span class="sc">*</span> temp[k]</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>temp <span class="ot">&lt;-</span><span class="dv">30</span><span class="sc">:</span><span class="dv">21</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>phi_logit <span class="ot">&lt;-</span> <span class="fu">numeric</span>(K)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Priors</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="do">## alpha_0 is equal to logit(phi_0), so prior for phi_0</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  phi_0 <span class="ot">&lt;-</span> <span class="fu">rbeta</span>(<span class="dv">1</span>, <span class="at">shape1 =</span> <span class="dv">1</span>, <span class="at">shape2 =</span> <span class="dv">1</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="do">## Prior for alpha_1</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  alpha_1 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="at">mean =</span> <span class="dv">0</span>, <span class="fu">sqrt</span>(<span class="dv">10</span>))</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate alpha_0</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  alpha_0 <span class="ot">&lt;-</span> <span class="fu">logit</span>(phi_0)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate phi_k </span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    phi_logit[k] <span class="ot">&lt;-</span> alpha_0 <span class="sc">+</span> alpha_1 <span class="sc">*</span> temp[k]</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>  phi <span class="ot">&lt;-</span> <span class="fu">binomial</span>()<span class="sc">$</span><span class="fu">linkinv</span>(phi_logit) <span class="co"># can't assign to a function in R</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>phi</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] 1 1 1 1 1 1 1 1 1 1</code></pre>
+</div>
+</div>
+<p>Following the rule that a fish cannot move directly from LNR to UMC (it would pass through LMC and be categorized as LMC), <span class="math inline">\(\pi^{LNR,UMC} = o\)</span>, or <span class="math inline">\(\pi^{2,4} = 0\)</span> following the indices. This gives us the full second row.</p>
+<p><span class="math display">\[
+(0, \phi_k\pi^{2,2}, \phi_k\pi^{2,3}, 0, \phi_k\pi^{2,5}, 1-\pi_k)
+\]</span></p>
+<p><span class="math inline">\(\Omega\)</span>, the transition matrix, is then currently:</p>
+<p><span class="math display">\[
+\begin{matrix}
+~&amp; NE &amp; LNR &amp; LMC &amp; UMC &amp; UNR &amp; EX\\
+NE&amp;1-\eta_k &amp; \eta_k \theta_2^2 &amp; \eta_k \theta_2^3 &amp; 0 &amp; \eta_k \theta_2^5 &amp; 0      \\
+LNR&amp; 0        &amp; \phi_k\pi^{2,2}   &amp; \phi_k\pi^{2,3}   &amp; 0 &amp; \phi_k\pi^{2,5}   &amp; 1-\pi_k \\
+LMC&amp; NA       &amp; NA                &amp;  NA               &amp; NA &amp; NA               &amp; NA \\
+UMC&amp; NA       &amp; NA                &amp;  NA               &amp; NA &amp; NA               &amp; NA \\
+UNR&amp; NA       &amp; NA                &amp;  NA               &amp; NA &amp; NA               &amp; NA \\
+EX&amp; NA       &amp; NA                &amp;  NA               &amp; NA &amp; NA               &amp; NA
+\end{matrix}
+\]</span></p>
+<p>If we add in the transition rules we started with, we get:</p>
+<p><span class="math display">\[
+\begin{matrix}
+~&amp;  NE       &amp; LNR               &amp; LMC               &amp; UMC &amp; UNR              &amp; EX \\
+NE&amp; 1-\eta_k &amp; \eta_k \theta_2^2 &amp; \eta_k \theta_2^3 &amp; 0  &amp; \eta_k \theta_2^5 &amp; 0  \\
+LNR&amp; 0       &amp; \phi_k\pi^{2,2} &amp; \phi_k\pi^{2,3}    &amp; 0  &amp; \phi_k\pi^{2,5}   &amp; 1-\pi_k \\
+LMC&amp; 0       &amp; NA                &amp;  NA              &amp; NA &amp; NA               &amp; 0 \\
+UMC&amp; 0       &amp; 0                 &amp;  NA              &amp; NA &amp; 0                &amp; 0 \\
+UNR&amp; 0       &amp; NA                &amp;  NA              &amp; 0  &amp; NA               &amp; 0 \\
+EX&amp;  0       &amp; 0                 &amp;  0               &amp; 0  &amp; 0                &amp; 1
+\end{matrix}
+\]</span></p>
+<p>The rest of the blanks can be filled in with their corresponding <span class="math inline">\(\pi^{i,j}\)</span>s:</p>
+<p><span class="math display">\[
+\begin{matrix}
+~&amp;  NE       &amp; LNR               &amp; LMC               &amp; UMC    &amp; UNR           &amp; EX \\
+NE&amp; 1-\eta_k &amp; \eta_k \theta_2^2 &amp; \eta_k \theta_2^3 &amp; 0  &amp; \eta_k \theta_2^5 &amp; 0  \\
+LNR&amp; 0       &amp; \phi_k\pi^{2,2} &amp; \phi_k\pi^{2,3}    &amp; 0  &amp; \phi_k\pi^{2,5}  &amp; 1-\pi_k \\
+LMC&amp; 0       &amp; \pi^{3,2}       &amp;  \pi^{3,3}      &amp; \pi^{3,4} &amp; \pi^{3,5}      &amp; 0 \\
+UMC&amp; 0       &amp; 0               &amp;  \pi^{4,3}      &amp; \pi^{4,4} &amp; 0              &amp; 0 \\
+UNR&amp; 0       &amp; \pi^{5,2}       &amp;  \pi^{5,3}         &amp; 0   &amp; \pi^{5,5}         &amp; 0 \\
+EX&amp;  0       &amp; 0               &amp;  0                 &amp; 0      &amp; 0              &amp; 1
+\end{matrix}
+\]</span></p>
+</section>
+</section>
+<section id="all-transitions" class="level4">
+<h4 class="anchored" data-anchor-id="all-transitions">All transitions</h4>
+<p>Now we need to code what we’ve laid out above. It looks like a bit of a bear as there are <span class="math inline">\(6*6 = 36\)</span> slots in <span class="math inline">\(\Omega\)</span> and 12 <span class="math inline">\(\pi\)</span>s to lay out, but it’s just saying exactly what we did above.</p>
+<p>Let’s start with the 12 <span class="math inline">\(\pi\)</span>s. Each row’s <span class="math inline">\(\pi\)</span>s to be estimated are given a Dirichlet prior with equal weight to each outcome. That is, each row’s value of <span class="math inline">\(\pi\)</span> will sum to 1, and we start by assuming that any valid (non-zero) transition in that row is equally likely.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pi is a 5 x 5 matrix</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#   one row and column for each state except EX (can't transition from EX)</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Call this pi_trans as to not overwrite internal "pi = 3.14" variable</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>pi_trans <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> <span class="dv">5</span>, <span class="at">ncol =</span> <span class="dv">5</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add constant pis that don't need to be estimated (zeroes)</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   From NE is the special first-row case outlined above, so pi is 0</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">1</span>, ] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   To NE is zero as fish cannot return to the not entered state once they have entered</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>  pi_trans[, <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   Overarching transition rules</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">#     LNR &lt;-&gt; UMC and UMC &lt;-&gt; UNR = 0</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">#     (must pass through LMC and therefore be categorized as LMC)</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">5</span>), <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># From LNR/UNR to UMC</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">4</span>, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">5</span>)] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># From UMC to LNR/UNR</span></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Dirichlet prior for remaining pis that need to be estimated</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">2</span>, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>)] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">3</span>, <span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">4</span>))</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">4</span>, <span class="dv">3</span><span class="sc">:</span><span class="dv">4</span>] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>  pi_trans[<span class="dv">5</span>, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>)] <span class="sc">~</span> <span class="fu">ddirch</span>(<span class="at">alpha =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Alright! We now have our <span class="math inline">\(\eta\)</span>s, <span class="math inline">\(\theta\)</span>s, <span class="math inline">\(\pi\)</span>s, and <span class="math inline">\(\phi\)</span>s: everything we need to build <span class="math inline">\(\Omega\)</span>, the transition matrix. Omega is a 6x6 matrix, repeated once for each time step. For a time series of length <span class="math inline">\(K\)</span>, this means an array with dimensions of 6 rows, 6 columns, repeated <span class="math inline">\(K\)</span> times.</p>
+<p>Notes: - <em>This order may need to be switched to make later matrix math work</em>. - <span class="math inline">\(\Omega\)</span> may be improperly coded – probability of exiting the system from all reaches was coded as <span class="math inline">\(1-\phi\)</span>, when fish are only allowed to leave from LNR. I have changed it below</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Let's pretend we only have 3 time steps</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>Omega <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">6</span>, <span class="dv">6</span>, K<span class="dv">-1</span>))</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>K){</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># for (r in 2:5){</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># From NE to the other states</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Use current state to inform what the previous state was</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">1</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> eta[k] <span class="co"># NE-&gt;NE</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">2</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> eta[k] <span class="sc">*</span> theta[<span class="dv">2</span>, <span class="dv">2</span>] <span class="co"># NE-&gt;LNR</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">3</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> eta[k] <span class="sc">*</span> theta[<span class="dv">2</span>, <span class="dv">3</span>] <span class="co"># NE-&gt;LMC</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">4</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> eta[k] <span class="sc">*</span> theta[<span class="dv">2</span>, <span class="dv">4</span>] <span class="co"># NE-&gt;UMC</span></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">5</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> eta[k] <span class="sc">*</span> theta[<span class="dv">2</span>, <span class="dv">5</span>] <span class="co"># NE-&gt;UNR</span></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">1</span>, <span class="dv">6</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Now use previous states</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># From LNR to other states</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">1</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">2</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> phi[k <span class="sc">-</span> <span class="dv">1</span>] <span class="sc">*</span> pi_trans[<span class="dv">2</span>, <span class="dv">2</span>]</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">3</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> phi[k <span class="sc">-</span> <span class="dv">1</span>] <span class="sc">*</span> pi_trans[<span class="dv">2</span>, <span class="dv">3</span>]</span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">4</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">5</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> phi[k <span class="sc">-</span> <span class="dv">1</span>] <span class="sc">*</span> pi_trans[<span class="dv">2</span>, <span class="dv">5</span>]</span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">2</span>, <span class="dv">6</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> phi[k <span class="sc">-</span> <span class="dv">1</span>]</span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Other reaches aren't special cases</span></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(r <span class="cf">in</span> <span class="dv">3</span><span class="sc">:</span><span class="dv">5</span>){</span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">1</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">2</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> pi_trans[r, <span class="dv">2</span>]</span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">3</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> pi_trans[r, <span class="dv">3</span>]</span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">4</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> pi_trans[r, <span class="dv">4</span>]</span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">5</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> pi_trans[r, <span class="dv">5</span>]</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>      Omega[r, <span class="dv">6</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># From EX to other states</span></span>
+<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">6</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># Cannot reenter</span></span>
+<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>    Omega[<span class="dv">6</span>, <span class="dv">6</span>  , k <span class="sc">-</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="co"># Must stay exited</span></span>
+<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a>Omega</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="placing-the-fish" class="level3">
+<h3 class="anchored" data-anchor-id="placing-the-fish">Placing the fish</h3>
+<p>Now, let’s use all of this to place a fish in the system. The reach, <span class="math inline">\(j\)</span>, a fish, <span class="math inline">\(i\)</span>, is in at time <span class="math inline">\(k\)</span> is defined as <span class="math inline">\(z_{ij}\)</span>, where <span class="math inline">\(z_i\)</span> takes values of 1, 2, 3, 4, 5 for states of NE, LNR, LMC, UMC, and UNR, respectively. For <span class="math inline">\(k=1\)</span> (time 1), this is the categorical outcome of the <span class="math inline">\(\xi\)</span> vector defined above. For times after <span class="math inline">\(k=1\)</span>, this depends on the transition probabilities from the location at <span class="math inline">\(k-1\)</span> (<span class="math inline">\(z_{ik-1}\)</span>) to any of the other states (1:6) at time <span class="math inline">\(k\)</span> (<span class="math inline">\(k,1:6\)</span>): <span class="math inline">\(\Omega_{z_{ik-1},k,1:6}\)</span>.</p>
+<p>$$ z_{i1} Categorical(_{1:5}) \</p>
+<p>z_{ik} Categorical(<em>{z</em>{ik-1}, k, 1:6}) $$</p>
+<p>Using <span class="math inline">\(\eta_1\)</span> and <span class="math inline">\(\theta_1^{2:5}\)</span> from above, the code is:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Starting probability of a fish in the system</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  xi <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">-</span> eta[<span class="dv">1</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">2</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">3</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">4</span>],</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>          eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">5</span>], <span class="dv">0</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Location of fish i in the system</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  z[i, <span class="dv">1</span>] <span class="sc">~</span> <span class="fu">dcat</span>(xi[<span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>])</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>G){</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>K){</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Location at k-1 (row) to any state (column) based on the probabilities at k-1 (array)</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>      z[i, k] <span class="sc">~</span> <span class="fu">dcat</span>(Omega[z[i, k<span class="dv">-1</span>], , k<span class="dv">-1</span>])</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co">#using the example eta and theta above</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Starting probability of a fish in the system</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  xi <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">-</span> eta[<span class="dv">1</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">2</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">3</span>], eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">4</span>],</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>          eta[<span class="dv">1</span>]<span class="sc">*</span>theta[<span class="dv">1</span>,<span class="dv">5</span>], <span class="dv">0</span>)</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Location of fish i in the system</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  z_i1 <span class="ot">&lt;-</span> <span class="fu">rcat</span>(<span class="dv">1</span>, xi[<span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>])</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>z_i1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1</code></pre>
+</div>
+</div>
+<section id="indicator-variables" class="level4">
+<h4 class="anchored" data-anchor-id="indicator-variables">Indicator variables</h4>
+<p>We now need to count how many marked fish were in each reach each day. First, remember that <span class="math inline">\(z_{ik}\)</span> includes all “fish”, including the ones that are fake. We can use the variable we created way up at the beginning, <span class="math inline">\(w_i\)</span>, which takes a value of 1 if the fish was real and a value of 0 if the fish was part of the augmented data. We multiply the values of <span class="math inline">\(z_{ik}\)</span> above by this value for each reach, which removes all of the augmented fish. We then sum all of the real fish in each reach in each day. In the manuscript, this is given by:</p>
+<p><span class="math display">\[
+M_{jk} = \sum_{i=1}^G I(z_{ik}w_i=j)
+\]</span></p>
+<p>So, if fish A was an actual tagged fish, <span class="math inline">\(w_A = 1\)</span>. If this fish was assigned the LMC at time 2, <span class="math inline">\(z_{A2} = 2\)</span>. If the reach, <span class="math inline">\(j\)</span>, was the LNR, this would take a value of 0 as <span class="math inline">\(2 \neq 1\)</span>. If <span class="math inline">\(j\)</span> was LMC, this would take a value of 1 as <span class="math inline">\(2=2\)</span>. We then sum this for each reach on each day.</p>
+<p>We can expand this from “numbers in each reach” to “numbers in the system” by dropping the focus on <span class="math inline">\(j\)</span> and <span class="math inline">\(w\)</span>, and just counting the fish if it was in the system – real or not. This is the “marked superpopulation”</p>
+<p><span class="math display">\[
+M^*_k=\sum_{i=1}^G I_{ik}
+\]</span></p>
+</section>
+</section>
+<section id="linking-to-the-data" class="level3">
+<h3 class="anchored" data-anchor-id="linking-to-the-data">Linking to the data</h3>
+<p>All of this is nice, but we need to ground it in what we actually recorded – our observed location of a fish <span class="math inline">\(i\)</span> at a given day <span class="math inline">\(k\)</span>. For tagged fish, this is a function of 1) the probability of detection (coverage of receivers) within a given reach <span class="math inline">\(\bar{p}_j\)</span>, 2) whether the real fish was tagged yet <span class="math inline">\(T_{ik}\)</span>, and 3) whether the fish was real <span class="math inline">\(w_i\)</span>.</p>
+<p><span class="math display">\[
+p_{j,i,k} = \bar{p}_j \times T_{ik} \times w_i
+\]</span></p>
+<p>The model assumed that a tagged fish in a given reach could either be observed in that reach or not detected. Fish that had not entered or exited already were assigned to Not Detected (ND). This creates <span class="math inline">\(P\)</span>, the detection probability matrix.</p>
+<p><span class="math display">\[
+\begin{matrix}
+~   &amp; ND          &amp; LNR       &amp; LMC       &amp; UMC       &amp; UNR       \\
+NE  &amp; 1           &amp; 0         &amp; 0         &amp; 0         &amp; 0         \\
+LNR &amp; 1-p_{2,i,k} &amp; p_{2,i,k} &amp; 0         &amp; 0         &amp; 0         \\
+LMC &amp; 1-p_{3,i,k} &amp; 0         &amp; p_{3,i,k} &amp; 0         &amp; 0         \\
+UMC &amp; 1-p_{4,i,k} &amp; 0         &amp; 0         &amp; p_{4,i,k} &amp; 0         \\
+UNR &amp; 1-p_{5,i,k} &amp; 0         &amp; 0         &amp; 0         &amp; p_{5,i,k} \\
+EX  &amp; 1           &amp; 0         &amp; 0         &amp; 0         &amp; 0
+\end{matrix}
+\]</span></p>
+<p>The probability that we detected a fish in a given reach at a given time, then, was categorically distributed according to the probability of a fish, which was assigned a given reach at a given time (<span class="math inline">\(z_{ik}\)</span>) not being observed (1, note this is NOT Not Entered, but Not Detected) or observed in a given reach (2:5).</p>
+<p><span class="math display">\[
+y_{ik} \sim Categorical(P_{z_{ik},i,k,1:5})
+\]</span> Let’s make <span class="math inline">\(P\)</span> in code. It is a 6 (states) * 5 (observations) * G (population) * K (time) dimensional array.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># priors</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span>          <span class="co"># telemetry detection prob. if in state: not-entered</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">2</span>] <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="dv">1</span>, <span class="dv">1</span>)    <span class="co"># telemetry detection prob. if in state: lnr</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">3</span>] <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="dv">1</span>, <span class="dv">1</span>)    <span class="co"># telemetry detection prob. if in state: lmc</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">4</span>] <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="dv">1</span>, <span class="dv">1</span>)    <span class="co"># telemetry detection prob. if in state: umc</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">5</span>] <span class="sc">~</span> <span class="fu">dbeta</span>(<span class="dv">1</span>, <span class="dv">1</span>)    <span class="co"># telemetry detection prob. if in state: unr</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">6</span>] <span class="ot">&lt;-</span> <span class="dv">0</span>            <span class="co"># telemetry detection prob. if in state: exited system</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>G){ <span class="co"># for every individual</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){ <span class="co"># at every time</span></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>){ <span class="co"># observed in each reach</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>      Rho[j, <span class="dv">1</span>, i, k] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> pbar[j] <span class="sc">*</span> Tau[i, k] <span class="sc">*</span> w[i]</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>      Rho[j, <span class="dv">2</span>, i, k] <span class="ot">&lt;-</span> pbar[j] <span class="sc">*</span> Tau[i, k] <span class="sc">*</span> w[i]</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>y[i, k] <span class="sc">~</span> <span class="fu">dcat</span>(Rho[z[i, k<span class="dv">-1</span>], <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, i, k])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>G <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2 real individuals</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>w <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2nd individual was tagged at k=2</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>Tau <span class="ot">&lt;-</span> <span class="fu">matrix</span>(</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, K), <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">rep</span>(<span class="dv">1</span>, K<span class="dv">-1</span>)), <span class="fu">rep</span>(<span class="dv">0</span>, K)),</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">byrow =</span> T,</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">nrow =</span> G, <span class="at">ncol =</span> K)</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>Rho <span class="ot">&lt;-</span> <span class="fu">array</span>(</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="co"># first column</span></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">4</span> <span class="sc">*</span> <span class="dv">6</span>)), <span class="co"># rest with 0s</span></span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">6</span>, <span class="dv">5</span>, K, G))</span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>pbar <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">6</span>L)</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a><span class="co"># priors</span></span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>pbar[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">6</span>)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>pbar[<span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>] <span class="ot">&lt;-</span> <span class="fu">rbeta</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>) </span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>G){</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K){</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>){</span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>      Rho[j, <span class="dv">1</span>, i, k] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> pbar[j] <span class="sc">*</span> Tau[i, k] <span class="sc">*</span> w[i]</span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>      Rho[j, j, i, k] <span class="ot">&lt;-</span> pbar[j] <span class="sc">*</span> Tau[i, k] <span class="sc">*</span> w[i]</span>
+<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="full-jolly-seber-jags-code" class="level3">
+<h3 class="anchored" data-anchor-id="full-jolly-seber-jags-code">Full Jolly-Seber JAGS code</h3>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
