@@ -9,3 +9,6 @@
 /.quarto/
 
 Data/skip_spawn
+Data/AIS/
+Data/2023 camera traps/
+Data/Detections/
