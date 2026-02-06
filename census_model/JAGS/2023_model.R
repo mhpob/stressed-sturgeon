@@ -1,3 +1,10 @@
+## Misc notes:
+# had trouble with recruitment probability, used Gemini for help
+# It suggested to make the initial Nsuper larger and make initial R's thinner
+# After plotting, it looks like an issue might be that 2023 was an early year --
+# All tagged fish had already entered by Sept 15, making probabilities hard to fit
+# Shifted up start date to the earliest temperature record: Sept 4
+
 library(data.table)
 library(jagsUI)
 
@@ -7,7 +14,7 @@ for (i in seq_along(master_data)) {
 }
 
 #### Define the study period ####
-StartDate <- as.POSIXct("2023-08-15 00:00:00", tz = "UTC")
+StartDate <- as.POSIXct("2023-08-04 00:00:00", tz = "UTC") # seems to be the earliest temperature
 EndDate <- as.POSIXct("2023-10-31 23:59:59", tz = "UTC")
 det_2023 <- detections[dateandtimeutc %between% c(StartDate, EndDate)]
 
@@ -102,7 +109,7 @@ jags.data <- list(
   sssMat = as.matrix(sss_2023[, 3]), # SSS counts; need as.numeric since this is only 1 col
   Ksss = Ksss, # number of SSS surveyed days
   sssSurveyOcc = sss_survey_occ, # survey dates
-  # V = V, # number of passes
+  V = V, # number of passes
   sssReaches = sss_reaches, # SSS reaches
 
   # telemetry data
@@ -180,9 +187,8 @@ piTranInits <- matrix(NA, 5, 5)
 piTranInits[2, 2:5] <- c(0.51, 0.22, 0.05, 0.22) #LNR to...
 piTranInits[3, 2:5] <- c(0.10, 0.65, 0.10, 0.15) #LMC to...
 piTranInits[4, 2:5] <- c(.05, .50, 0.40, 0.05) #UMC to...
-piTranInits[5, 2:5] <- c(0.3, 0.15, 0.05, 0.5) #UNR to..
-
-NsuperKinit <- 200 # start the population somewhere reasonable. Too large is better than too small.
+piTranInits[5, 2:5] <- #UNR to..
+  NsuperKinit <- 200 # start the population somewhere reasonable. Too large is better than too small.
 
 NreachInits <- matrix(NA, K, 6)
 # NreachInits[1, 1:5] <- as.vector(rmultinom(
@@ -247,7 +253,7 @@ inits <- function() {
 # MCMC settings
 # nc <- 2
 # nAdapt = 50
-# nb <- 1
+# nb <- 1c(0.3, 0.15, 0.05, 0.5)
 # ni <- 50 + nb
 # nt <- 1
 
@@ -272,6 +278,5 @@ out2023 <- jags(
 )
 
 saveRDS(out2023, "out2023.RDS")
-cat("Rhat range:\n")
-range(out2023$Rhat, na.rm = T)
+cat("Rhat range:\n", range(out2023$Rhat, na.rm = T))
 # out2023 <- readRDS('census_model/out2023.RDS')

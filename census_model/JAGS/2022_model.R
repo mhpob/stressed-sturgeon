@@ -282,6 +282,8 @@ out2022 <- jags(
 )
 
 saveRDS(out2022, "out2022.RDS")
-cat("Rhat range:\n")
-range(out2022$Rhat, na.rm = T)
+cat(
+  "Rhat range:\n",
+  range(out2022$Rhat, na.rm = T)
+)
 # out2022 <- readRDS('census_model/out2022.RDS')
