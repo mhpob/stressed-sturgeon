@@ -9,6 +9,7 @@
 /.quarto/
 
 Data/skip_spawn
-Data/AIS/
 Data/2023 camera traps/
 Data/Detections/
+Data/NHD_H_0208_HU4_GDB.gdb
+Data/Maryland_Property_Data_-_Tax_Map_Grids
