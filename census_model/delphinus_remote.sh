@@ -1,4 +1,16 @@
 #### Stan
+### 2021
+scp -r ./census_model/Stan/coleman mike@delphinus:/home/mike/census21
+ssh mike@delphinus \
+  " nohup \
+    docker run --rm \
+    -v /home/mike/census21/coleman:/coleman \
+    -w /coleman \
+    census_tag \
+    Rscript -e 'source(\"2021_run_stan.R\")' \
+    > /home/mike/census21/coleman/out2021.log 2>&1 &"
+
+
 ## copy stan data to delphinus
 scp ./census_model/Stan/2023_stan_data.json mike@delphinus:/home/mike/census21/STAN/2023_stan_data.json
 ## copy stan model to delphinus
