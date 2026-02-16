@@ -2,7 +2,7 @@ library(cmdstanr)
 # compile model (once)
 # m <- cmdstan_model(stan_file = "census_model_2021.stan")
 
-# load model
+# load 2021 model as it has the old transitions
 m <- cmdstan_model(
   stan_file = "census_model_2021.stan",
   exe_file = "census_model_2021"
@@ -35,7 +35,7 @@ init_fn <- function() {
 }
 
 fit <- m$sample(
-  data = "2021_stan_data.json",
+  data = "2022_stan_data.json",
   seed = 20688,
   refresh = 2000,
   init = init_fn,
@@ -47,7 +47,7 @@ fit <- m$sample(
   output_dir = "./stan_out"
 )
 
-fit$save_object(file = "out2021_bigG_stan.RDS")
+fit$save_object(file = "out2022_omega0_stan.RDS")
 
 ## To save cmdstan console output for debugging:
 # con <- file("stan_debug_log.txt", open = "wt")

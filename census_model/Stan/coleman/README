@@ -1,0 +1,3 @@
+This directory contains Stan code to run the model as specified in Coleman et al.
+2024. The main differences are centered around the specification of the transition
+matrix: Omega in Coleman et al. 2024 and Gamma in the current specification.

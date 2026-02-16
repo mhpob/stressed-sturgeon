@@ -1,6 +1,4 @@
 library(cmdstanr)
-# compile model (once)
-# m <- cmdstan_model(stan_file = "census_model/Stan/census_model.stan")
 
 # load model
 m <- cmdstan_model(
@@ -26,12 +24,12 @@ init_fn <- function() {
   list(
     # --- Survival & Recruitment ---
     # Prior: normal(-0.1, 0.05)
-    # beta1 = runif(1, -0.15, -0.02),
-    beta1 = -0.01, # from JAGS code
+    beta1 = runif(1, -0.15, -0.02),
+    # beta1 = -0.01, # from JAGS code
 
     # # Prior: normal(0, 1.5)
-    # # alpha0 = runif(1, -0.5, 0.5),
-    alpha0 = 0.5, #from JAGS code
+    alpha0 = runif(1, -0.5, 0.5),
+    # alpha0 = 0.5, #from JAGS code
 
     # # Prior: normal(0.2, 0.15)
     alpha1 = 0.2, #from JAGS code
@@ -43,7 +41,6 @@ init_fn <- function() {
     # # Flat priors (1,1,1,1)
     # # theta[1, 2:5] in Coleman et al. 2024
     init_probs = add_jitter(c(0.40, 0.40, 0.10, 0.10)),
-    # init_probs = c(NULL, 0.40, 0.40, 0.10, 0.10),
     # # # theta[2, 2:5] in Coleman et al. 2024
     entry_probs = add_jitter(c(0.50, 0.30, 0.10, 0.10)),
     # entry_probs = c(0.50, 0.30, 0.10, 0.10),
@@ -72,20 +69,20 @@ init_fn <- function() {
   )
 }
 
-m$sample(
-  data = "2023_stan_data.json",
+fit <- m$sample(
+  data = "2020_stan_data.json",
   seed = 20688,
   refresh = 2000,
   init = init_fn,
   parallel_chains = 4,
-  iter_warmup = 49000,
+  iter_warmup = 19000,
   iter_sampling = 1000,
   save_metric = TRUE,
   save_cmdstan_config = TRUE,
   output_dir = "./stan_out"
 )
 
-fit$save_object(file = "out2023_stan.RDS")
+fit$save_object(file = "out2020_omega1_stan.RDS")
 
 ## To save cmdstan console output for debugging:
 # con <- file("stan_debug_log.txt", open = "wt")

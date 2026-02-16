@@ -7,43 +7,65 @@ for (i in seq_along(master_data)) {
 }
 
 #### Define the study period ####
-StartDate <- as.POSIXct("2023-08-04 00:00:00", tz = "UTC") # seems to be the earliest temperature
-EndDate <- as.POSIXct("2023-10-31 23:59:59", tz = "UTC")
-det_2023 <- detections[dateandtimeutc %between% c(StartDate, EndDate)]
+StartDate <- as.POSIXct("2024-08-13 00:00:00", tz = "UTC") # earliest temperature available
+EndDate <- as.POSIXct("2024-10-30 23:59:59", tz = "UTC") # latest temperature available
+det_2024 <- detections[dateandtimeutc %between% c(StartDate, EndDate)]
 
 K <- as.numeric(as.Date(EndDate) - as.Date(StartDate)) + 1
 days <- seq(as.Date(StartDate), as.Date(EndDate), 1)
-ntelem <- length(unique(det_2023$transmitter))
+ntelem <- length(unique(det_2024$transmitter))
 
 
 #### Import SSS ####
-sss_2023 <- sss[year(date) == 2023]
+sss_2024 <- sss[year(date) == 2024]
 
 # make survey id
-sss_2023[, survey_day := as.numeric(date - as.Date(StartDate) + 1)]
-sss_survey_occ <- sss_2023$survey_day
-sss_reaches <- sss_2023$reach_no
-Ksss = nrow(sss_2023) # number of sss survey days
+sss_2024[, survey_day := as.numeric(date - as.Date(StartDate) + 1)]
+sss_survey_occ <- sss_2024$survey_day
+sss_reaches <- sss_2024$reach_no
+Ksss = nrow(sss_2024) # number of sss survey days
 V = 1 # number of sss passes. Just hardcoded for now
 
 #### Create detection matrix ####
-### NEW RULES!! ###
-# 1) if in UNR, assign to UNR
-# 2) if in UMC, assign to UMC
-# 3) If in both UNR and UMC, use the last location
-
-y_mat <- copy(det_2023) |>
+### OLD RULES!! (LMC preference) ###
+# 1) if in LMC, assign to LMC
+# 2) if in both UNR and UMC, assign to LMC
+# 3) if in both LNR and UMC, assigne to LMC
+# 3) else max reach
+y_mat <- copy(det_2024) |>
   unique(by = c("transmitter", "date", "reach_no")) |>
   _[,
     .(
       reach = fifelse(
-        all(c(4, 5) %in% reach_no),
-        .SD[which.max(dateandtimeutc)]$reach_no,
+        3 %in%
+          reach_no |
+          all(c(4, 5) %in% reach_no) |
+          all(c(2, 4) %in% reach_no),
+        3,
         max(reach_no)
       )
     ),
     by = c("transmitter", "date")
   ]
+
+
+### NEW RULES!! (upper reach preference) ###
+# 1) if in UNR, assign to UNR
+# 2) if in UMC, assign to UMC
+# 3) if in both UNR and UMC, use the last location
+#
+# y_mat <- copy(det_2024) |>
+#   unique(by = c("transmitter", "date", "reach_no")) |>
+#   _[,
+#     .(
+#       reach = fifelse(
+#         all(c(4, 5) %in% reach_no),
+#         .SD[which.max(dateandtimeutc)]$reach_no,
+#         max(reach_no)
+#       )
+#     ),
+#     by = c("transmitter", "date")
+#   ]
 y_mat <- y_mat[
   expand.grid(transmitter = unique(y_mat$transmitter), date = days),
   on = c("transmitter", "date")
@@ -55,8 +77,8 @@ y_mat <- dcast(y_mat, transmitter ~ date, value.var = 'reach')
 #### Create tagging indicator ####
 # matrix with 0 if th fish wasnt tagged and 1 if it was
 # Rows are fish, columns are dates
-cap_23 <- ats[
-  DateCaptured %between% c(as.Date(StartDate), "2023-12-31"),
+cap <- ats[
+  DateCaptured %between% c(as.Date(StartDate), "2024-12-31"),
   .(
     date = (DateCaptured - 1), # -1 in order to match tagged in the overlap
     transmitter = TransmitterNumber,
@@ -65,18 +87,18 @@ cap_23 <- ats[
 ]
 
 
-t_mat <- unique(det_2023, by = c("transmitter", "date")) |>
+t_mat <- unique(det_2024, by = c("transmitter", "date")) |>
   _[, .(transmitter, date)] |>
   _[
-    expand.grid(transmitter = unique(det_2023$transmitter), date = days),
+    expand.grid(transmitter = unique(det_2024$transmitter), date = days),
     on = c("transmitter", "date"),
   ] |>
   _[, date2 := date]
 
-setkey(cap_23, transmitter, start, date)
+setkey(cap, transmitter, start, date)
 setkey(t_mat, transmitter, date, date2)
 
-telem_indicator <- foverlaps(t_mat, cap_23) |>
+telem_indicator <- foverlaps(t_mat, cap) |>
   _[, tagged := as.numeric(is.na(start))] |>
   dcast(transmitter ~ i.date, value.var = 'tagged')
 
@@ -103,10 +125,13 @@ data_list <- list(
   temp = round(temp$temp, 1),
   Ksss = Ksss,
   V = V,
-  sssMat = as.matrix(sss_2023[, 3]),
-  sssReach = sss_reaches,
-  sssSurveyOcc = sss_survey_occ
+  sssMat = as.matrix(sss_2024[, 3]),
+  sssReach = as.array(sss_reaches), #as.array is needed if there's only one number
+  sssSurveyOcc = as.array(sss_survey_occ) #same as above
 )
 
 
-cmdstanr::write_stan_json(data_list, "2023_stan_data.json")
+cmdstanr::write_stan_json(
+  data_list,
+  "census_model/Stan/2024/2024lmc_stan_data.json"
+)

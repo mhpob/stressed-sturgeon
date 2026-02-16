@@ -21,7 +21,7 @@ init_fn <- function() {
     init_probs = c(0.40, 0.40, 0.10, 0.10), # JAGS: theta[1,]
     entry_probs = c(0.50, 0.30, 0.20), #JAGS: entryProb
     # move_probs_LNR uninitialized; JAGS: piTranInits[2,]
-    move_probs_LMC = c(0.10, 0.65, 0.05, 0.20), #J AGS: piTranInits[3,]
+    move_probs_LMC = c(0.10, 0.65, 0.05, 0.20), #JAGS: piTranInits[3,]
     move_probs_UMC = c(.5, .5), # JAGS: piTranInits[4,]
     # move_probs_UNR uninitialized; JAGS: piTranInits[5,]
 
@@ -35,19 +35,19 @@ init_fn <- function() {
 }
 
 fit <- m$sample(
-  data = "2021_stan_data.json",
+  data = "2024lmc_stan_data.json",
   seed = 20688,
   refresh = 2000,
   init = init_fn,
   parallel_chains = 4,
-  iter_warmup = 24000,
+  iter_warmup = 11000,
   iter_sampling = 1000,
   save_metric = TRUE,
   save_cmdstan_config = TRUE,
   output_dir = "./stan_out"
 )
 
-fit$save_object(file = "out2021_bigG_stan.RDS")
+fit$save_object(file = "out2024_lmc_omega0.RDS")
 
 ## To save cmdstan console output for debugging:
 # con <- file("stan_debug_log.txt", open = "wt")

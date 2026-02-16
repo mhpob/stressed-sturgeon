@@ -73,12 +73,12 @@ parameters {
   
   // Movement Probabilities
   simplex[4] init_probs;   // Beginning dist (LNR, LMC, UMC, UNR)       
-  simplex[3] entry_probs;  // Dist of new entrants (LNR, LMC, UMC, UNR)
+  simplex[4] entry_probs;  // Dist of new entrants (LNR, LMC, UMC, UNR)
   // move_probs_X are the pi matrix in Coleman et al. 2024
-  simplex[3] move_probs_LNR;  // From LNR to...
+  simplex[4] move_probs_LNR;  // From LNR to...
   simplex[4] move_probs_LMC;  // From LMC to...
-  simplex[2] move_probs_UMC;  // From UMC to...
-  simplex[3] move_probs_UNR;  // From UNR to...
+  simplex[4] move_probs_UMC;  // From UMC to...
+  simplex[4] move_probs_UNR;  // From UNR to...
   
   // Detection
   vector<lower=0, upper=1>[4] pbar_raw; // Probability of detection in a reach (2:5)
@@ -127,16 +127,16 @@ transformed parameters {
     Gamma[t, 1, 1] = 1 - eta_t; // Stay Not Entered
     Gamma[t, 1, 2] = eta_t * entry_probs[1]; // to LNR
     Gamma[t, 1, 3] = eta_t * entry_probs[2]; // to LMC
-    Gamma[t, 1, 4] = 0; // to UMC
-    Gamma[t, 1, 5] = eta_t * entry_probs[3]; // to UNR
+    Gamma[t, 1, 4] = eta_t * entry_probs[3]; // to UMC
+    Gamma[t, 1, 5] = eta_t * entry_probs[4]; // to UNR
     Gamma[t, 1, 6] = 0;
 
     // FROM LNR (2)
     Gamma[t, 2, 1] = 0;
     Gamma[t, 2, 2] = phi[t] * fmax(move_probs_LNR[1], 1e-9); // stay LNR
     Gamma[t, 2, 3] = phi[t] * fmax(move_probs_LNR[2], 1e-9); // to LMC
-    Gamma[t, 2, 4] = 0; // to UMC
-    Gamma[t, 2, 5] = phi[t] * fmax(move_probs_LNR[3], 1e-9); // to UNR
+    Gamma[t, 2, 4] = phi[t] * fmax(move_probs_LNR[3], 1e-9); // to UMC
+    Gamma[t, 2, 5] = phi[t] * fmax(move_probs_LNR[4], 1e-9); // to UNR
     Gamma[t, 2, 6] = 1 - phi[t];                             // Exit/die
 
     // FROM LMC (3)
@@ -149,18 +149,18 @@ transformed parameters {
 
     // FROM UMC (4)
     Gamma[t, 4, 1] = 0;
-    Gamma[t, 4, 2] = 0;
-    Gamma[t, 4, 3] = phi[t] * fmax(move_probs_UMC[1], 1e-9); 
-    Gamma[t, 4, 4] = phi[t] * fmax(move_probs_UMC[2], 1e-9);
-    Gamma[t, 4, 5] = 0;
+    Gamma[t, 4, 2] = phi[t] * fmax(move_probs_UMC[1], 1e-9);
+    Gamma[t, 4, 3] = phi[t] * fmax(move_probs_UMC[2], 1e-9); 
+    Gamma[t, 4, 4] = phi[t] * fmax(move_probs_UMC[3], 1e-9);
+    Gamma[t, 4, 5] = phi[t] * fmax(move_probs_UMC[4], 1e-9);
     Gamma[t, 4, 6] = 1 - phi[t];
 
     // FROM UNR (5)
     Gamma[t, 5, 1] = 0;
     Gamma[t, 5, 2] = phi[t] * fmax(move_probs_UNR[1], 1e-9);
     Gamma[t, 5, 3] = phi[t] * fmax(move_probs_UNR[2], 1e-9); 
-    Gamma[t, 5, 4] = 0;
-    Gamma[t, 5, 5] = phi[t] * fmax(move_probs_UNR[3], 1e-9);
+    Gamma[t, 5, 4] = phi[t] * fmax(move_probs_UNR[3], 1e-9);
+    Gamma[t, 5, 5] = phi[t] * fmax(move_probs_UNR[4], 1e-9);
     Gamma[t, 5, 6] = 1 - phi[t];
 
     // FROM Exited (6)
@@ -231,26 +231,24 @@ transformed parameters {
 
 model {
   // --- Priors ---
-  psi ~ beta(0.0001, 1);
-  beta1 ~ normal(0, 3.16);
-  alpha0 ~ logistic(0, 1); // Since phi0 = logit(alpha0), this is phi0 ~ beta(1, 1) on the probability scale
-  alpha1 ~ normal(0, 3.16);
-  p_sss ~ beta(1, 1);
-  LambdaSuper ~ gamma(0.1, 0.1); 
-  pbar_raw ~ beta(1, 1);
-
-
-
+  // Centering on values and CIs offered by Coleman et al. 2024
+  LambdaSuper ~ normal(70, 25); // "95% sure the average population is between 20 and 120."
+  p_sss ~ beta(10, 3); // Mean = 0.83
+  pbar_raw ~ beta(5, 1.5); // Mean ~0.77, allowing for some lower values due to p_4 in 2021
+  beta1 ~ normal(-0.1, 0.05);
+  alpha1 ~ normal(0.2, 0.15);
+  psi ~ beta(1, 1);
+  alpha0 ~ normal(0, 1.5);
 
   // theta vector (entry distribution) gets a Dirichlet prior:
   init_probs ~ dirichlet(rep_vector(1, 4));
-  entry_probs ~ dirichlet(rep_vector(1, 3)); // cannot enter into UMC
+  entry_probs ~ dirichlet(rep_vector(1, 4));
 
   // pi matrix rows (movement probabilities within river):
-  move_probs_LNR ~ dirichlet(rep_vector(1, 3)); // pi row 2 (from LNR, cannot pass LMC)
+  move_probs_LNR ~ dirichlet(rep_vector(1, 4)); // pi row 2 (from LNR)
   move_probs_LMC ~ dirichlet(rep_vector(1, 4)); // pi row 3 (from LMC)
-  move_probs_UMC ~ dirichlet(rep_vector(1, 2)); // pi row 4 (from UMC, cannot pass LMC)
-  move_probs_UNR ~ dirichlet(rep_vector(1, 3)); // pi row 5 (from UNR, cannot reach UMC)
+  move_probs_UMC ~ dirichlet( [10, 10, 10, 2]' ); // pi row 4 (from UMC, less likely to go to UNR)
+  move_probs_UNR ~ dirichlet( [10, 10, 2, 10]' ); // pi row 5 (from UNR, less likely to go to UMC)
 
   // --- Likelihood 1: Marked Individuals ---
   vector[6] start_xi = to_vector(state_probs[1]); 
