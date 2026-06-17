@@ -10,6 +10,11 @@
 
 Data/skip_spawn
 Data/2023 camera traps/
+Data/edna/
 Data/Detections/
 Data/NHD_H_0208_HU4_GDB.gdb
 Data/Maryland_Property_Data_-_Tax_Map_Grids
+Data/mdnr
+**/*.quarto_ipynb
+
+census_model/coleman/model data/

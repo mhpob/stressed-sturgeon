@@ -1,16 +1,17 @@
-#2021 Model
+#2020 Model
 rm(list = ls())
 gc()
 library(jagsUI)
 library(mgcv)
-# library(lubridate)
-# library(ggplot2)
-# library(dplyr)
-library(data.table)
+library(lubridate)
+library(ggplot2)
 
 ## Define the study period
-StartDate <- as.POSIXct("2021-08-15")
-EndDate <- as.POSIXct("2021-10-31")
+StartDate <- as.POSIXct("2020-08-15")
+
+## MOB: REMINDER THAT STUDY PERIOD WENT TO THE 26th RATHER THAN 31st DUE TO
+##   MDNR PULLING RECEIVERS
+EndDate <- as.POSIXct("2020-10-26")
 K <- as.numeric(difftime(EndDate, StartDate, units = "days")) + 1
 days <- seq(as.Date(StartDate), as.Date(EndDate), 1)
 
@@ -22,29 +23,14 @@ dat <- data.table::fread("Data/Detections/old/sturgeon_detections.gz")
 #unique(dat$transmitter)
 unique(dat$station)
 
-# subset to 2021 data
-dat2021 <- dat[year(date.local) == "2021", ]
+# subset to 2020 data
+dat2020 <- dat[which(format(dat$date.local, format = "%Y") == "2020"), ]
 
-# make key (MOB)
-# k <- unique(dat2021, by = c('station')) |>
-#   _[, c('station', 'long', 'lat')] |>
-#   sf::st_as_sf(coords = c('long', 'lat'), crs = 4326)
 
-river_segments <- fread('census_model/coleman/2021_receiver_key.csv')
-river_segments[,
-  river := fcase(
-    river == 'LNR' , 2 ,
-    river == 'UNR' , 5 ,
-    river == 'LMC' , 3 ,
-    river == 'UMC' , 4
-  )
-]
-dat2021 <- dat2021[river_segments, , on = 'station']
-
-# transciever locations in 2021
-#locs2021<- read.csv("2021_receivers.csv")
-##locs <- uniquecombs(dat2020[,c("lat","long","station")],ordered=FALSE)
-##locs$River<-c(3,3,2,2,2,3,3,3,3,4,4,4,2,2,2,2,3,3,3,3,3,3,3,4,4,2,2,4,4) # assign each location to a river segment
+# transciever locations in 2020
+locs2020 <- read.csv("census_model/coleman/2020_receivers.csv")
+#locs <- uniquecombs(dat2020[,c("lat","long","station")],ordered=FALSE)
+#locs$River<-c(3,3,2,2,2,3,3,3,3,4,4,4,2,2,2,2,3,3,3,3,3,3,3,4,4,2,2,4,4) # assign each location to a river segment
 
 # add in 21909 and combine with dat
 #fish21909 <- read.csv("mbalazik_21909.csv")
@@ -56,121 +42,145 @@ dat2021 <- dat2021[river_segments, , on = 'station']
 #dat2020<- rbind(dat2020, fish21909merge, use.names=FALSE)
 
 # convert to dataframe to play nice with later analyses
-# dat2021<- data.frame(dat2021)
-dat2021 <- dat2021[transmitter != 'A69-9001-21060', ] #Removing fish that died
-dat2021 <- dat2021[transmitter != 'A69-9001-10158', ] #Removing fish that came into system before August 15 and was not detected again
+dat2020 <- data.frame(dat2020)
+
 
 # ID'd fish in 2020
-ID2021 <- unique(dat2021$transmitter)
-ntelem <- length(ID2021)
+ID2020 <- unique(dat2020$transmitter)
+ntelem <- length(ID2020)
 # assign detections to a river segement
-# dat2021$reach <- locs2021$reach[match(dat2021$station, locs2021$station)]
-setnames(dat2021, 'river', 'reach')
+dat2020$reach <- locs2020$reach[match(dat2020$station, locs2020$station)]
+
 
 ###----------------------------------------###
 ### load VPS detections
-VPSdat <- fread("census_model/coleman/2021_VPS_Detections.csv")
-VPSdat$FishTag <- VPSdat$FullId %in% ID2021
+VPSdat <- read.csv("census_model/coleman/2020_VPS_Detections.csv")
+VPSdat$FishTag <- VPSdat$DETECTEDID %in% ID2020
 VPSdat <- VPSdat[VPSdat$FishTag == "TRUE", ] # reduced to actual fish tags (what's up with 21909?)
-VPSdat$DATETIME <- lubridate::ymd_hms(VPSdat$Time, tz = Sys.timezone())
-VPSid <- unique(VPSdat$FullId)
-match(unique(VPSdat$FullId), ID2021) # all VPS tags should have a match in array data
+VPSdat$DATETIME <- lubridate::mdy_hm(VPSdat$DATETIME, tz = Sys.timezone())
+VPSid <- unique(VPSdat$DETECTEDID)
+match(unique(VPSdat$DETECTEDID), ID2020) # all VPS tags should have a match in array data
 
 
 # looking okay so far
-# plot(locs2020[,c("long","lat")], col=locs2020$River, cex=1)
-# points(VPSdat[,c("LON","LAT")], col=rgb(0,0,1,.1), pch=16,cex=.75)
+plot(locs2020[, c("long", "lat")], col = locs2020$River, cex = 1)
+points(VPSdat[, c("LON", "LAT")], col = rgb(0, 0, 1, .1), pch = 16, cex = .75)
 
-# # transcievers
-# plot(locs2020[,c("long","lat")], col=locs2020$River, pch=16,cex=1)
-# text(locs2020[,c("long","lat")], labels=locs2020$station)
+# transcievers
+plot(locs2020[, c("long", "lat")], col = locs2020$River, pch = 16, cex = 1)
+text(locs2020[, c("long", "lat")], labels = locs2020$station)
+
 
 # plot the detections of any individual
-# plot(locs2021[,c("long","lat")], col="red", cex=1, main="A69-9001-18980")
-# points(dat2021[dat2021$transmitter=="A69-9001-18980", c("long","lat")], col="blue", pch=16,
-#        cex=table(dat2021[dat2021$transmitter=="A69-9001-18980", c("station")])/max(table(dat2021[dat2021$transmitter=="A69-9001-18980", c("station")]))*2)
-#
-# #transmitter detections per reciever
-# t(table(dat2021[,"transmitter"], dat2021[,"station"]))
+plot(
+  locs2020[, c("long", "lat")],
+  col = "red",
+  cex = 1,
+  main = "A69-9001-23904"
+)
+points(
+  dat2020[dat2020$transmitter == "A69-9001-23904", c("long", "lat")],
+  col = "blue",
+  pch = 16,
+  cex = table(dat2020[dat2020$transmitter == "A69-9001-23904", c("station")]) /
+    max(table(dat2020[dat2020$transmitter == "A69-9001-23904", c("station")])) *
+    2
+)
 
-# if(1==0){
-#   # plot the detections of any individual
-#   plot(locs2021[,c("long","lat")], col=locs2021$reach, cex=1)
-#   i = 7
-#   tmp <- dat2021[dat2021$transmitter==ID2021[i], ]
-#   tmp <- tmp[order(tmp$date.local), ]
-#   for(k in 1:dim(tmp)[1]){
-#     #points(tmp [k, c("long","lat")], col=rgb(1,0,1,.25), pch=16,cex=1.)
-#     plot(locs2021[,c("long","lat")], col=locs2021$River, cex=1, main=tmp$date.local[k])
-#     points(tmp [k, c("long","lat")], col=rgb(1,0,1,1), pch=16,cex=2)
-#     Sys.sleep(.00001)
-#   }
-# }
+#transmitter detections per reciever
+t(table(dat2020[, "transmitter"], dat2020[, "station"]))
+
+
+if (1 == 0) {
+  # plot the detections of any individual
+  plot(locs2020[, c("long", "lat")], col = locs2020$reach, cex = 1)
+  i = 7
+  tmp <- dat2020[dat2020$transmitter == ID2020[i], ]
+  tmp <- tmp[order(tmp$date.local), ]
+  for (k in 1:dim(tmp)[1]) {
+    #points(tmp [k, c("long","lat")], col=rgb(1,0,1,.25), pch=16,cex=1.)
+    plot(
+      locs2020[, c("long", "lat")],
+      col = locs2020$River,
+      cex = 1,
+      main = tmp$date.local[k]
+    )
+    points(tmp[k, c("long", "lat")], col = rgb(1, 0, 1, 1), pch = 16, cex = 2)
+    Sys.sleep(.00001)
+  }
+}
 
 ###----------------------------------------###
 ## create encounter history matrix by day
-# ntelem is the number of transmitters; K is number of days
 y <- matrix(1, ntelem, K) # 1 is not detected
 
-dat2021[, date := as.Date(date.local)] #MOB
-VPSdat[, date := as.Date(Time)] #MOB
-
-# For each fish
 for (i in 1:ntelem) {
-  tmp <- dat2021[dat2021$transmitter == ID2021[i], ]
-
-  # for each day
+  tmp <- dat2020[dat2020$transmitter == ID2020[i], ]
   for (k in 1:K) {
-    tmp_date <- tmp[date == days[k]]
-
-    # If there are detections
-    if (length(tmp_date$reach) > 0) {
-      # LMC if was detected in LMC, else max reach
-      y[i, k] <- ifelse(3 %in% tmp_date$reach, 3, max(tmp_date$reach))
-    }
-  }
-
+    if (
+      length(as.numeric(names(table(tmp[
+        which(as.Date(tmp[, "date.local"]) == days[k]),
+        "reach"
+      ])))) >
+        0
+    ) {
+      y[i, k] <- ifelse(
+        3 %in%
+          as.numeric(names(table(tmp[
+            which(as.Date(tmp[, "date.local"]) == days[k]),
+            "reach"
+          ]))),
+        3,
+        max(as.numeric(names(table(tmp[
+          which(as.Date(tmp[, "date.local"]) == days[k]),
+          "reach"
+        ]))))
+      )
+    } #if
+  } #k
   ## add in vps detections
-  # if the fish was detected in the VPS, it mus be assigned LMC (river section 3)
-  if (ID2021[i] %in% VPSid) {
-    tmpVPS <- VPSdat[FullId == ID2021[i], ]
-
-    # For each day detected in the VPS assign LMC
+  if (ID2020[i] %in% VPSid) {
+    tmpVPS <- VPSdat[VPSdat$DETECTEDID == ID2020[i], ]
     for (k in 1:K) {
-      if (length(tmpVPS[date == days[k]]$reach) > 0) {
+      if (
+        length(as.numeric(names(table(tmpVPS[
+          which(as.Date(tmpVPS[, "DATETIME"]) == days[k]),
+          "reach"
+        ])))) >
+          0
+      ) {
         y[i, k] <- 3 ## if detected in VPS array it must be in river section 3
-      }
-    }
-  }
-}
+      } #if
+    } #k
+  } #if
+} #i
 
 plot(y[1, ])
 
 ## date of first marking
-SturgeonCapDat <- fread("census_model/sturgeon_capture_data.csv")
+SturgeonCapDat <- read.csv("census_model/sturgeon_capture_data.csv")
 firstTelem <- as.Date(x = integer(0), origin = "1970-01-01")
 startTelem <- lastTelem <- NA
-
-## for each fish
-## (minus 1 as 21909 has a different history (tagged in another system))
 for (i in 1:(ntelem - 1)) {
-  firstTelem[i] <- SturgeonCapDat[
-    TransmitterNumber == ID2021[i],
-    as.Date(DateCaptured, format = '%m/%d/%Y')
-  ]
+  ## 21909 has a different history (tagged in another system)
+  firstTelem[i] <- as.Date(
+    SturgeonCapDat$DateCaptured[which(
+      SturgeonCapDat$TransmitterNumber == ID2020[i]
+    )],
+    format = "%m/%d/%Y"
+  )
   startTelem[i] <- ifelse(
     firstTelem[i] < StartDate,
     1,
-    as.numeric(
-      difftime(firstTelem[i], as.Date(StartDate), units = "days")
-    ) +
-      1
+    as.numeric(difftime(firstTelem[i], as.Date(StartDate), units = "days")) + 1
   )
   lastTelem[i] <- max(which(y[i, ] > 1)) # last occasion an individual was seen
 }
 startTelem[ntelem] <- 1
 lastTelem[ntelem] <- max(which(y[ntelem, ] > 1))
-
+## MOB ADD:
+## 21909 was tagged in 2018, first appeared on the 38th day: y[14, 38]
+startTelem[14] <- 38
 
 # create indicator variable for when an individual has an active tag
 TelemIndicator <- matrix(0, ntelem, K)
@@ -179,13 +189,14 @@ for (i in 1:ntelem) {
 } #i
 
 ###----------------------------------------###
-### Load 2021 SSS data
-sssDat <- fread("census_model/2021_SSS_Total.csv")
-sssDat$Date.Collected <- as.Date(sssDat$SonarDateTime, format = "%m/%d/%Y")
-sssDates <- cbind(unique(sssDat$Date.Collected), 1:5)
-sssDat$SurveyID <- as.numeric(
-  sssDates[, 2][match(as.numeric(sssDat$Date.Collected), sssDates[, 1])]
-)
+### Load 2020 SSS data
+sssDat <- read.csv("census_model/coleman/2020_Total_SSS2.csv") # MOB EDIT
+sssDat$Date.Collected <- as.Date(sssDat$Image.Time, format = "%m/%d/%Y") #Had to change the file here because headers were changed
+sssDates <- cbind(unique(sssDat$Date.Collected), 1:4) #MOB EDIT FROM 1:5 to 1:4
+sssDat$SurveyID <- as.numeric(sssDates[, 2][match(
+  as.numeric(sssDat$Date.Collected), #MOB EDIT, ADD as.numeric
+  sssDates[, 1]
+)])
 
 sssMat <- table(sssDat$SurveyID, sssDat$Pass)
 sssSurveyOcc <- as.numeric(
@@ -195,31 +206,29 @@ Ksss = dim(sssMat)[1] # number of sss survey days
 V = dim(sssMat)[2] # number of sss passes
 
 
-plot(dat2021[, c("long", "lat")], col = dat2021$reach, cex = 1, pch = 16)
+plot(locs2020[, c("long", "lat")], col = locs2020$River, cex = 1, pch = 16)
 points(sssDat[, c("Lon", "Lat")], col = "magenta", pch = 16, cex = .75) # SSS target
 
 ###----------------------------------------###
 ### load temp data
-temp2021 <- fread('census_model/2021_Temp.csv')
-temp2021[, temp_diff := Temp - shift(Temp)]
-temp2021$Date <- as.Date(temp2021$Date, "%d-%b")
-SeafordTemp2021 <- ggplot() +
-  geom_point(data = temp2021, aes(x = Date, y = Temp)) +
+tempDat <- read.csv("census_model/coleman/2020_Temp.csv")
+Temp <- ggplot() +
+  geom_point(data = tempDat, aes(x = Date, y = Temp)) +
+  ggtitle("2020") +
   xlab("") +
-  ggtitle("2021") +
-  ylab("Seaford Temperature (\u00B0C)") +
+  ylab("Temperature (\u00B0C)") +
   theme_classic() +
   theme(
     axis.text = element_text(size = 12, ),
     axis.title.x = element_text(size = 14),
     plot.title = element_text(hjust = 1)
   )
-temp2021
+Temp
 
 ###----------------------------------------###
 ## Start building the JAGS model
 
-sink("census_model/Sturgeon_SSS_Telem_MS_ExpectedProb_test.txt")
+sink("Sturgeon_SSS_Telem_MS_ExpectedProb_test.txt")
 
 cat(
   "
@@ -548,7 +557,7 @@ TelemIndicatorAug <- rbind(TelemIndicator, matrix(1, nz, K))
 J = 6 # states (not entered, 4 reaches, exited)
 
 
-jags.data2 <- list(
+jags.data <- list(
   #SSS data
   sssMat = as.matrix(sssMat), # SSS counts
   Ksss = Ksss, # number of SSS surveyed days
@@ -563,10 +572,25 @@ jags.data2 <- list(
   TelemIndicator = TelemIndicatorAug,
   a = rep(1, 5),
   J = J,
-  temp = temp2021$Temp[5:82]
-  #tempDat$Seaford[11:83] #Change this for 2021 temp data
+  temp = tempDat$Seaford[11:83]
 ) # data
 
+
+### MOB: MAKE DATA FOR STAN
+list(
+  K = jags.data$K,
+  G = jags.data$G,
+  n_telem = ntelem,
+  y = jags.data$y,
+  TelemIndicator = jags.data$TelemIndicator,
+  temp = jags.data$temp,
+  Ksss = jags.data$Ksss,
+  V = jags.data$V,
+  sssMat = jags.data$sssMat,
+  sssReach = rep(3, 4),
+  sssSurveyOcc = jags.data$sssSurveyOcc
+) |>
+  cmdstanr::write_stan_json("census_model/Stan/2020/2020_stan_data.json")
 
 params <- c(
   "LambdaSuper",
@@ -645,29 +669,27 @@ Rinit <- as.vector(rmultinom(1, NsuperKinit, c(.3, .2, rep(.05, K - 2)))) # agai
 Rinit[K] <- NA
 
 # initial values
-inits_list <- list(
-  ## total population and shared stuff
-  NsuperK = NsuperKinit,
-  LambdaSuper = NsuperKinit,
-  Nreach = NreachInits,
-  R = Rinit,
-  phi0 = .995,
-  alpha1 = 0,
-  beta1 = -0.01,
-  theta = theta,
-  piTran = piTranInits,
-
-  ## sss parameters
-  p_sss = runif(1, .8, .99),
-
-  ## telemetry
-  psi = runif(1, .6, .9),
-  pbar = c(NA, runif(3, .7, .9), NA, NA),
-  z = zInits
-)
-
 inits <- function() {
-  inits_list
+  list(
+    ## total population and shared stuff
+    NsuperK = NsuperKinit,
+    LambdaSuper = NsuperKinit,
+    Nreach = NreachInits,
+    R = Rinit,
+    phi0 = .995,
+    alpha1 = 0,
+    beta1 = -0.01,
+    theta = theta,
+    piTran = piTranInits,
+
+    ## sss parameters
+    p_sss = runif(1, .8, .99),
+
+    ## telemetry
+    psi = runif(1, .6, .9),
+    pbar = c(NA, runif(3, .7, .9), NA, NA),
+    z = zInits
+  )
 }
 
 # MCMC settings
@@ -679,11 +701,11 @@ ni <- 50000 + nb
 nt <- 10
 
 # Call JAGS from R
-out2021 <- jags(
+out <- jags(
   jags.data,
   inits,
   params,
-  "census_model/Sturgeon_SSS_Telem_MS_ExpectedProb_test.txt",
+  "Sturgeon_SSS_Telem_MS_ExpectedProb_test.txt",
   n.adapt = nAdapt,
   n.chains = nc,
   n.thin = nt,
@@ -694,46 +716,70 @@ out2021 <- jags(
 
 
 # Summarize posteriors
-print(out2021, dig = 2, )
+print(out, dig = 2, )
 
 
 # save output as a matrix to make plots and summarize data
-outmat2021 <- as.matrix(out2021$samples)
+outmat <- as.matrix(out$samples)
+quantile(outmat[, "alpha1"], c(0.5, 0.025, 0.975)) #How to call data from matrix
 
 
 ## start of some plotting ideas (very draft and currently ugly!!)
 
 #plot abundance and distribution of marked individuals
 plot(
-  out2021$q50$N,
-  ylim = c(0, 80),
+  out$q50$N,
+  ylim = c(0, 50),
   xaxt = "n",
   xlab = "Date",
   ylab = "Sturgeon (marked+unmarked)",
   las = 1,
   pch = 16
 ) # total marked in system by day
-segments(1:K, out2021$q2.5$N, 1:K, out2021$q97.5$N)
+segments(1:K, out$q2.5$N, 1:K, out$q97.5$N)
 axis(1, at = 1:K, format(days, '%m-%d'))
 
-points(1:K - .2, out2021$q50$Nnan, col = "red", pch = 16) # total in nanticoke by day
-segments(1:K - .2, out2021$q2.5$Nnan, 1:K - .2, out2021$q97.5$Nnan, col = "red")
+points(1:K - .2, out$q50$Nreach == '5', col = "red", pch = 16) # total in nanticoke by day
+segments(1:K - .2, out$q2.5$Nnan, 1:K - .2, out$q97.5$Nnan, col = "red")
 
-points(1:K + .2, out2021$q50$Nmc, col = "blue", pch = 16) # total in mc by day
-segments(1:K + .2, out2021$q2.5$Nmc, 1:K + .2, out2021$q97.5$Nmc, col = "blue")
+points(1:K + .2, out$q50$Nmc, col = "blue", pch = 16) # total in mc by day
+segments(1:K + .2, out$q2.5$Nmc, 1:K + .2, out$q97.5$Nmc, col = "blue")
 
 legend(
   "topright",
   legend = c("Nanticoke system", "Nanticoke reaches", "MC reaches"),
   text.col = c("black", "red", "blue"),
   bty = 'n',
+  cex = 1.2
+)
+
+#Plot UNR daily abundance vs MC abundance
+plot(
+  out$q50$Nmc,
+  ylim = c(0, 25),
+  xaxt = "n",
+  xlab = "Date",
+  ylab = "Sturgeon (marked+unmarked)",
+  las = 1,
+  pch = 16
+)
+segments(1:K, out$q2.5$Nmc, 1:K, out$q97.5$Nmc)
+axis(1, at = 1:K, format(days, '%m-%d'))
+
+points(1:K - .2, UNR_2020$UNR, col = "blue", pch = 16) # total in UNR by day
+segments(1:K - .2, UNR_2020$UNR_2.5, 1:K - .2, UNR_2020$UNR_97.5, col = "blue")
+legend(
+  "topright",
+  legend = c("Marshyhope Creek Reaches", "Upper Nanticoke Reach"),
+  text.col = c("black", "blue"),
+  bty = 'n',
   cex = 1.1
 )
 
-# plot daily abundance and cumulative abundance of individuals
+# plot daily abundance and cumulative abundance of marked individuals
 plot(
-  out2021$q50$Nsuper,
-  ylim = c(0, 110),
+  out$q50$Nsuper,
+  ylim = c(0, 60),
   pch = 16,
   ,
   xaxt = "n",
@@ -741,11 +787,11 @@ plot(
   ylab = "Sturgeon (marked+unmarked)",
   las = 1
 ) # total marked in system by day
-segments(1:K, out2021$q2.5$Nsuper, 1:K, out2021$q97.5$Nsuper)
+segments(1:K, out$q2.5$Nsuper, 1:K, out$q97.5$Nsuper)
 axis(1, at = 1:K, format(days, '%m-%d'))
 
-points(1:K - .25, out2021$q50$N, col = "red", pch = 16) # total marked in system by day
-segments(1:K - .25, out2021$q2.5$N, 1:K - .25, out2021$q97.5$N, col = "red")
+points(1:K - .25, out$q50$N, col = "red", pch = 16) # total marked in system by day
+segments(1:K - .25, out$q2.5$N, 1:K - .25, out$q97.5$N, col = "red")
 legend(
   "topleft",
   legend = c("Cumulative", "Daily"),
@@ -753,10 +799,11 @@ legend(
   bty = 'n',
   cex = 1.2
 )
+# Also, it looks like fish didn't start leaving until mid-Sep, which is when Msuper[k] starts to become larger than M[k]
 
 #Idea: plot persistence probs.
 plot(
-  out2021$q50$phi,
+  out$q50$phi,
   ylim = c(0.80, 1.00),
   xaxt = "n",
   xlab = "Date",
@@ -764,36 +811,23 @@ plot(
   las = 1,
   pch = 16
 ) # total marked in system by day
-segments(1:K, out2021$q2.5$phi, 1:K, out2021$q97.5$phi)
+segments(1:K, out$q2.5$phi, 1:K, out$q97.5$phi)
 axis(1, at = 1:K, format(days, '%m-%d'))
 
 plot(
   jags.data$temp,
-  out2021$q50$phi,
+  out$q50$phi,
   ylim = c(0.80, 1.00),
   xlab = "Temp",
   ylab = "Daily persistence probability",
   las = 1,
   pch = 16
 ) # total marked in system by day
-segments(jags.data$temp, out2021$q2.5$phi, jags.data$temp, out2021$q97.5$phi)
-
-#Idea: plot recruitment probs.
-plot(
-  out2021$q50$b,
-  ylim = c(0.00, 0.26),
-  xaxt = "n",
-  xlab = "Date",
-  ylab = "Daily recruitment probability",
-  las = 1,
-  pch = 16
-) # total marked in system by day
-segments(1:K, out2021$q2.5$b, 1:K, out2021$q97.5$b)
-axis(1, at = 1:K, format(days, '%m-%d'))
+segments(jags.data$temp, out$q2.5$phi, jags.data$temp, out$q97.5$phi)
 
 #Temperature overlaying Persistence
 plot(
-  out2021$q50$phi,
+  out$q50$phi,
   xaxt = "n",
   ylim = c(0.80, 1.00),
   xlab = "Date",
@@ -801,9 +835,10 @@ plot(
   las = 1,
   pch = 16
 )
-segments(1:K, out2021$q2.5$phi, 1:K, out2021$q97.5$phi)
+segments(1:K, out$q2.5$phi, 1:K, out$q97.5$phi)
 axis(1, at = 1:K, format(days, '%m-%d'))
 par(new = TRUE)
+#par(mar=c(5.3, 4.3, 4.3, 4.3))
 plot(
   jags.data$temp,
   pch = 16,
@@ -816,10 +851,11 @@ plot(
 axis(side = 4, xlab = "", ylab = "")
 mtext("Temperature (\u00B0C)", side = 4, line = 3)
 
-
 #Flow overlaying Persistence
+flow <- read.csv("2020_Flow.csv")
+flow$date <- as.Date(flow$date, "%m/%d/%Y")
 plot(
-  out2021$q50$phi,
+  out$q50$phi,
   xaxt = "n",
   ylim = c(0.80, 1.00),
   xlab = "Date",
@@ -827,7 +863,7 @@ plot(
   las = 1,
   pch = 16
 )
-segments(1:K, out2021$q2.5$phi, 1:K, out2021$q97.5$phi)
+segments(1:K, out$q2.5$phi, 1:K, out$q97.5$phi)
 axis(1, at = 1:K, format(days, '%m-%d'))
 par(new = TRUE)
 plot(
@@ -842,9 +878,10 @@ plot(
 axis(side = 4, xlab = "", ylab = "")
 mtext("Flow (ft^3)/s)", side = 4, line = 3)
 
-#Temperature overlaying Recruitment
+
+#Idea: plot recruitment probs.
 plot(
-  out2021$q50$b,
+  out$q50$b,
   ylim = c(0.00, 0.26),
   xaxt = "n",
   xlab = "Date",
@@ -852,7 +889,20 @@ plot(
   las = 1,
   pch = 16
 ) # total marked in system by day
-segments(1:K, out2021$q2.5$b, 1:K, out2021$q97.5$b)
+segments(1:K, out$q2.5$b, 1:K, out$q97.5$b)
+axis(1, at = 1:K, format(days, '%m-%d'))
+
+#Temperature overlaying Recruitment
+plot(
+  out$q50$b,
+  ylim = c(0.00, 0.26),
+  xaxt = "n",
+  xlab = "Date",
+  ylab = "Daily recruitment probability",
+  las = 1,
+  pch = 16
+) # total marked in system by day
+segments(1:K, out$q2.5$b, 1:K, out$q97.5$b)
 axis(1, at = 1:K, format(days, '%m-%d'))
 par(new = TRUE)
 plot(
@@ -869,7 +919,7 @@ mtext("Temperature (\u00B0C)", side = 4, line = 3)
 
 #Flow overlaying Recruitment
 plot(
-  out2021$q50$b,
+  out$q50$b,
   ylim = c(0.00, 0.26),
   xaxt = "n",
   xlab = "Date",
@@ -877,7 +927,7 @@ plot(
   las = 1,
   pch = 16
 ) # total marked in system by day
-segments(1:K, out2021$q2.5$b, 1:K, out2021$q97.5$b)
+segments(1:K, out$q2.5$b, 1:K, out$q97.5$b)
 axis(1, at = 1:K, format(days, '%m-%d'))
 par(new = TRUE)
 plot(
@@ -892,25 +942,5 @@ plot(
 axis(side = 4, xlab = "", ylab = "")
 mtext("Flow (ft^3)/s)", side = 4, line = 3)
 
-#MC vs UNR
-plot(
-  out2021$q50$Nmc,
-  ylim = c(0, 50),
-  xaxt = "n",
-  xlab = "Date",
-  ylab = "Sturgeon (marked+unmarked)",
-  las = 1,
-  pch = 16
-)
-segments(1:K, out2021$q2.5$Nmc, 1:K, out2021$q97.5$Nmc)
-axis(1, at = 1:K, format(days, '%m-%d'))
-
-points(1:K - .2, UNR_2021$UNR, col = "blue", pch = 16) # total in UNR by day
-segments(1:K - .2, UNR_2021$UNR_2.5, 1:K - .2, UNR_2021$UNR_97.5, col = "blue")
-legend(
-  "topright",
-  legend = c("Marshyhope Creek Reaches", "Upper Nanticoke Reach"),
-  text.col = c("black", "blue"),
-  bty = 'n',
-  cex = 1.1
-)
+#Percentage of marked fish
+pctmarked <- (outmat$q50[, "Msuper[73]"] / outmat$q50[, "Nsuper[73]"])
