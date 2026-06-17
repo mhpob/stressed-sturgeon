@@ -7,62 +7,24 @@ for (i in seq_along(master_data)) {
 }
 
 #### Define the study period ####
-StartDate <- as.POSIXct("2022-08-15 00:00:00", tz = "UTC") # seems to be the earliest temperature
-EndDate <- as.POSIXct("2022-10-31 23:59:59", tz = "UTC")
-det_2022 <- detections[dateandtimeutc %between% c(StartDate, EndDate)]
+StartDate <- as.POSIXct("2024-08-13 00:00:00", tz = "UTC") # seems to be the earliest temperature
+EndDate <- as.POSIXct("2024-10-30 23:59:59", tz = "UTC")
+det_2024 <- detections[dateandtimeutc %between% c(StartDate, EndDate)]
 
 K <- as.numeric(as.Date(EndDate) - as.Date(StartDate)) + 1
 days <- seq(as.Date(StartDate), as.Date(EndDate), 1)
-ntelem <- length(unique(det_2022$transmitter))
+ntelem <- length(unique(det_2024$transmitter))
 
-setorder(det_2022, transmitter, dateandtimeutc)
-reaches <- det_2022[,
-  .SD[
-    reach_no != shift(reach_no) | is.na(shift(reach_no)) | seq_len(.N) == .N,
-    .(
-      reach_no,
-      start_time = dateandtimeutc,
-      end_time = shift(dateandtimeutc, type = "lead")
-    )
-  ],
-  by = transmitter
-][!is.na(end_time)]
-setkey(reaches, transmitter, start_time, end_time)
-
-time_grid <- CJ(
-  transmitter = unique(det_2022$transmitter),
-  start_time = seq(as.POSIXct(StartDate), as.POSIXct(EndDate), by = "day")
-) |>
-  _[, end_time := start_time + 86399]
-setkey(time_grid, transmitter, start_time, end_time)
-
-overlaps <- foverlaps(time_grid, reaches) |>
-  _[
-    !is.na(reach_no),
-    duration := as.numeric(difftime(
-      time1 = fifelse(end_time < i.end_time, end_time, i.end_time),
-      time2 = fifelse(start_time > i.start_time, start_time, i.start_time),
-      units = "secs"
-    ))
-  ] |>
-  _[,
-    .(total_seconds = sum(duration)),
-    by = .(transmitter, date = as.Date(i.start_time), reach_no)
-  ]
-setorder(overlaps, transmitter, date, -total_seconds, na.last = TRUE)
-y_mat <- overlaps[, .SD[1], by = .(transmitter, date)] |>
-  _[is.na(reach_no), reach_no := 1] |>
-  dcast(transmitter ~ date, value.var = "reach_no")
 
 #### Import SSS ####
-sss_2022 <- sss[year(date) == 2022]
+sss_2024 <- sss[year(date) == 2024]
 
 # make survey id
-sss_2022[, survey_day := as.numeric(date - as.Date(StartDate) + 1)]
+sss_2024[, survey_day := as.numeric(date - as.Date(StartDate) + 1)]
 
 # Convert to long format in order to handle any "NA" passes
-sss_2022 <- melt(
-  sss_2022,
+sss_2024 <- melt(
+  sss_2024,
   id.vars = c("date", "reach_no", "survey_day"),
   measure.vars = c("1", "2"),
   variable.name = "pass",
@@ -71,6 +33,11 @@ sss_2022 <- melt(
   _[!is.na(count)]
 
 #### Create detection matrix ####
+# 'LNR' = 2
+# 'UNR' = 5
+# 'LMC' = 3
+# 'UMC' = 4
+# "BC"  = 6
 ### OLD RULES!! (LMC preference) ###
 # 1) if in LMC, assign to LMC
 # 2) if in both UNR and UMC, assign to LMC
@@ -95,33 +62,39 @@ sss_2022 <- melt(
 ### NEW RULES!! ###
 # 1) if in UNR, assign to UNR
 # 2) if in UMC, assign to UMC
-# 3) If in both UUNR and UMC, use the last location
+# 3) If in both UNR and UMC, use the last location
+# 4) If both UNR and BC, use UNR
 
-# y_mat <- det_2022 |>
-#   _[, .(dt = max(dateandtimeutc)), by = .(transmitter, date, reach_no)] |>
-#   _[,
-#     .(
-#       reach = fcase(
-#         # Both 4 and 5 exist -> pick the one with the later max timestamp
-#         all(c(4, 6) %in% reach_no) ,
-#         reach_no[which.max(dt)]    ,
+y_mat <- det_2024 |>
+  _[, .(dt = max(dateandtimeutc)), by = .(transmitter, date, reach_no)] |>
+  _[,
+    .(
+      reach = fcase(
+        # Rule 1: Reach 6 AND another reach exist -> pick the other reach
+        uniqueN(reach_no) > 1 & 6 %in% reach_no ,
+        max(reach_no[reach_no != 6])            ,
 
-#         # Default Rule: Just take the max reach
-#         default = max(reach_no)
-#       )
-#     ),
-#     by = c("transmitter", "date")
-#   ]
+        # Rule 2: Both 4 and 5 exist -> pick the one with the later max timestamp
+        all(c(4, 5) %in% reach_no)              ,
+        reach_no[which.max(dt)]                 ,
+
+        # Default Rule: Just take the max reach
+        default = max(reach_no)
+      )
+    ),
+    by = c("transmitter", "date")
+  ]
 
 ## call the above y_mat2 compare the two if desired:
 # y_mat[y_mat2, on = c("transmitter", "date")][reach != i.reach]
 
-# y_mat <- y_mat[
-#   expand.grid(transmitter = unique(y_mat$transmitter), date = days),
-#   on = c("transmitter", "date")
-# ]
-# y_mat[is.na(reach), 'reach'] <- 1
-# y_mat <- dcast(y_mat, transmitter ~ date, value.var = 'reach')
+y_mat <- y_mat[
+  expand.grid(transmitter = unique(y_mat$transmitter), date = days),
+  on = c("transmitter", "date")
+]
+y_mat[is.na(reach), 'reach'] <- 1
+y_mat <- dcast(y_mat, transmitter ~ date, value.var = 'reach')
+
 
 #### Create tagging indicator ####
 # matrix with 0 if th fish wasnt tagged and 1 if it was

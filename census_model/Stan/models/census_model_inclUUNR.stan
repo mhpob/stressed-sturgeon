@@ -50,18 +50,17 @@ data {
   // Telemetry Data
   int<lower=1> n_telem;       // Number of telemetered fish (marked individuals)
   int<lower=n_telem> G;       // Augmented data, must be >> number of marked individuals    
-  array[G, K] int<lower=1, upper=5> y;  // Capture histories (1=NotSeen, 2=LNR, etc.)
+  array[G, K] int<lower=1, upper=6> y;  // Capture histories (1=NotSeen, 2=LNR, etc.)
   array[G, K] int<lower=0, upper=1> TelemIndicator;
   
   // Covariates
   vector[K] temp;
   
   // SSS Data
-  int<lower=1> Ksss;              // Number of SSS surveys
-  int<lower=1> V;                 // Passes per survey
-  array[Ksss, V] int<lower=0> sssMat;   // Counts
-  array[Ksss] int<lower=1, upper=K> sssSurveyOcc; // Which day (1:K)
-  array[Ksss] int<lower=2, upper=5> sssReach;  // Which reach (2:5 corresponding to LNR:UNR)           
+  int<lower=1> N_sss_obs;                 // Total number of actual pass counts recorded
+  array[N_sss_obs] int<lower=0> sss_counts; // The actual counts (no NAs!)
+  array[N_sss_obs] int<lower=1, upper=K> sss_day;     // Matching global day for each count
+  array[N_sss_obs] int<lower=2, upper=6> sss_reach;      
 }
 
 parameters {
@@ -72,16 +71,17 @@ parameters {
   real<lower=0, upper=1> psi;  // Data augmentation inclusion prob    
   
   // Movement Probabilities
-  simplex[4] init_probs;   // Beginning dist (LNR, LMC, UMC, UNR)       
-  simplex[4] entry_probs;  // Dist of new entrants (LNR, LMC, UMC, UNR)
+  simplex[5] init_probs;   // Beginning dist (LNR, LMC, UMC, UNR, UUNR)       
+  simplex[5] entry_probs;  // Dist of new entrants (LNR, LMC, UMC, UNR, UUNR)
   // move_probs_X are the pi matrix in Coleman et al. 2024
-  simplex[4] move_probs_LNR;  // From LNR to...
-  simplex[4] move_probs_LMC;  // From LMC to...
-  simplex[4] move_probs_UMC;  // From UMC to...
-  simplex[4] move_probs_UNR;  // From UNR to...
+  simplex[5] move_probs_LNR;  // From LNR to...
+  simplex[5] move_probs_LMC;  // From LMC to...
+  simplex[5] move_probs_UMC;  // From UMC to...
+  simplex[5] move_probs_UNR;  // From UNR to...
+  simplex[5] move_probs_UUNR;   // From UUNR to...
   
   // Detection
-  vector<lower=0, upper=1>[4] pbar_raw; // Probability of detection in a reach (2:5)
+  vector<lower=0, upper=1>[5] pbar_raw; // Probability of detection in a reach (2:6)
   real<lower=0, upper=1> p_sss; // Detection probability for SSS
   
   // Population Size (expected superpopulation size, not the actual realized N)
@@ -91,9 +91,9 @@ parameters {
 transformed parameters {
   vector<lower=0, upper=1>[K] phi;
   vector[K] b;                    // Entry probability per day
-  array[K-1] matrix[6, 6] Gamma; // State Transition Matrices, Omega in Coleman et al. 2024       
-  array[G, K] matrix[6, 5] Rho;  // Observation Matrices (Marked)       
-  matrix[K, 6] state_probs;     // Prob of ANY fish being in state s at time k  
+  array[K-1] matrix[7, 7] Gamma; // State Transition Matrices, Omega in Coleman et al. 2024       
+  array[G, K] matrix[7, 6] Rho;  // Observation Matrices (Marked)       
+  matrix[K, 7] state_probs;     // Prob of ANY fish being in state s at time k  
   // vector[K] temp_std;           
 
   // 1. Survival & Entry
@@ -107,7 +107,7 @@ transformed parameters {
   }
 
   // 2. Build Transition Matrices (Gamma; Omega in Coleman et al. 2024)
-  // Rows: From, Cols: To. States: 1:NE, 2:LNR, 3:LMC, 4:UMC, 5:UNR, 6:Exit
+  // Rows: From, Cols: To. States: 1:NE, 2:LNR, 3:LMC, 4:UMC, 5:UNR, 6:UUNR, 7:Exit
   for(t in 1:(K-1)){
     // Calculate Conditional Entry (Hazard Rate)
     // "Given I haven't entered yet, what is the chance I enter now?"
@@ -129,7 +129,8 @@ transformed parameters {
     Gamma[t, 1, 3] = eta_t * entry_probs[2]; // to LMC
     Gamma[t, 1, 4] = eta_t * entry_probs[3]; // to UMC
     Gamma[t, 1, 5] = eta_t * entry_probs[4]; // to UNR
-    Gamma[t, 1, 6] = 0;
+    Gamma[t, 1, 6] = eta_t * entry_probs[5]; // to UUNR
+    Gamma[t, 1, 7] = 0;
 
     // FROM LNR (2)
     Gamma[t, 2, 1] = 0;
@@ -137,7 +138,8 @@ transformed parameters {
     Gamma[t, 2, 3] = phi[t] * fmax(move_probs_LNR[2], 1e-9); // to LMC
     Gamma[t, 2, 4] = phi[t] * fmax(move_probs_LNR[3], 1e-9); // to UMC
     Gamma[t, 2, 5] = phi[t] * fmax(move_probs_LNR[4], 1e-9); // to UNR
-    Gamma[t, 2, 6] = 1 - phi[t];                             // Exit/die
+    Gamma[t, 2, 6] = phi[t] * fmax(move_probs_LNR[5], 1e-9); // to UUNR
+    Gamma[t, 2, 7] = 1 - phi[t];                             // Exit/die
 
     // FROM LMC (3)
     Gamma[t, 3, 1] = 0;
@@ -145,7 +147,8 @@ transformed parameters {
     Gamma[t, 3, 3] = phi[t] * fmax(move_probs_LMC[2], 1e-9); 
     Gamma[t, 3, 4] = phi[t] * fmax(move_probs_LMC[3], 1e-9);
     Gamma[t, 3, 5] = phi[t] * fmax(move_probs_LMC[4], 1e-9);
-    Gamma[t, 3, 6] = 1 - phi[t];
+    Gamma[t, 3, 6] = phi[t] * fmax(move_probs_LMC[5], 1e-9);
+    Gamma[t, 3, 7] = 1 - phi[t];
 
     // FROM UMC (4)
     Gamma[t, 4, 1] = 0;
@@ -153,7 +156,8 @@ transformed parameters {
     Gamma[t, 4, 3] = phi[t] * fmax(move_probs_UMC[2], 1e-9); 
     Gamma[t, 4, 4] = phi[t] * fmax(move_probs_UMC[3], 1e-9);
     Gamma[t, 4, 5] = phi[t] * fmax(move_probs_UMC[4], 1e-9);
-    Gamma[t, 4, 6] = 1 - phi[t];
+    Gamma[t, 4, 6] = phi[t] * fmax(move_probs_UMC[5], 1e-9);
+    Gamma[t, 4, 7] = 1 - phi[t];
 
     // FROM UNR (5)
     Gamma[t, 5, 1] = 0;
@@ -161,25 +165,35 @@ transformed parameters {
     Gamma[t, 5, 3] = phi[t] * fmax(move_probs_UNR[2], 1e-9); 
     Gamma[t, 5, 4] = phi[t] * fmax(move_probs_UNR[3], 1e-9);
     Gamma[t, 5, 5] = phi[t] * fmax(move_probs_UNR[4], 1e-9);
-    Gamma[t, 5, 6] = 1 - phi[t];
+    Gamma[t, 5, 6] = phi[t] * fmax(move_probs_UNR[5], 1e-9);
+    Gamma[t, 5, 7] = 1 - phi[t];
+
+    // FROM UUNR (6)
+    Gamma[t, 6, 1] = 0;
+    Gamma[t, 6, 2] = phi[t] * fmax(move_probs_UUNR[1], 1e-9);
+    Gamma[t, 6, 3] = phi[t] * fmax(move_probs_UUNR[2], 1e-9); 
+    Gamma[t, 6, 4] = phi[t] * fmax(move_probs_UUNR[3], 1e-9);
+    Gamma[t, 6, 5] = phi[t] * fmax(move_probs_UUNR[4], 1e-9);
+    Gamma[t, 6, 6] = phi[t] * fmax(move_probs_UUNR[5], 1e-9);
+    Gamma[t, 6, 7] = 1 - phi[t];
 
     // FROM Exited (6)
-    Gamma[t, 6, 1:5] = rep_row_vector(0, 5); // Can't re-enter
-    Gamma[t, 6, 6] = 1; // Stays exited
+    Gamma[t, 7, 1:6] = rep_row_vector(0, 6); // Can't re-enter
+    Gamma[t, 7, 7] = 1; // Stays exited
   }
   
   // 3. Build Rho (Observation)
   // Dimensions: [Time, State, Obs]
-  // Obs: 1=NotSeen, 2=LNR, 3=LMC, 4=UMC, 5=UNR
+  // Obs: 1=NotSeen, 2=LNR, 3=LMC, 4=UMC, 5=UNR, 6=UUNR
   for(i in 1:G){
     for(k in 1:K){
-      Rho[i, k] = rep_matrix(0, 6, 5);
+      Rho[i, k] = rep_matrix(0, 7, 6);
 
-      // States 1 (NE) and 6 (Exit) can never be detected
+      // States 1 (NE) and 7 (Exit) can never be detected
       Rho[i, k, 1, 1] = 1.0;
-      Rho[i, k, 6, 1] = 1.0;
+      Rho[i, k, 7, 1] = 1.0;
 
-      // Active States (2-5)
+      // Active States (2-6)
       // We use pbar_raw vector. index 1->LNR(state 2), 2->LMC(state 3), etc.
       real p_curr; 
       
@@ -201,13 +215,18 @@ transformed parameters {
       // UNR
       p_curr = pbar_raw[4] * TelemIndicator[i, k];
       Rho[i, k, 5, 1] = 1 - p_curr;
-      Rho[i, k, 5, 5] = p_curr;      
+      Rho[i, k, 5, 5] = p_curr;  
+
+      // UUNR
+      p_curr = pbar_raw[5] * TelemIndicator[i, k];
+      Rho[i, k, 6, 1] = 1 - p_curr;
+      Rho[i, k, 6, 6] = p_curr;  
     }
   }
 
   // 4. Propagate Population Probabilities (for SSS count data)
   {
-    row_vector[6] init_dist;
+    row_vector[7] init_dist;
     real safe_b1 = fmax(fmin(b[1], 0.999999), 1e-9);
 
     // Initial distribution (Day 1)
@@ -216,10 +235,11 @@ transformed parameters {
     init_dist[3] = fmax(safe_b1 * init_probs[2], 1e-9); 
     init_dist[4] = fmax(safe_b1 * init_probs[3], 1e-9); 
     init_dist[5] = fmax(safe_b1 * init_probs[4], 1e-9);
-    init_dist[6] = 0;
+    init_dist[6] = fmax(safe_b1 * init_probs[5], 1e-9);
+    init_dist[7] = 0;
     
     state_probs[1] = init_dist;
-    row_vector[6] current_dist = init_dist;
+    row_vector[7] current_dist = init_dist;
     
     for(t in 2:K){
       // Propagate: distribution * transition_matrix
@@ -241,17 +261,18 @@ model {
   alpha0 ~ normal(0, 1.5);
 
   // theta vector (entry distribution) gets a Dirichlet prior:
-  init_probs ~ dirichlet(rep_vector(1, 4));
-  entry_probs ~ dirichlet(rep_vector(1, 4));
+  init_probs ~ dirichlet(rep_vector(1, 5));
+  entry_probs ~ dirichlet(rep_vector(1, 5));
 
   // pi matrix rows (movement probabilities within river):
-  move_probs_LNR ~ dirichlet(rep_vector(1, 4)); // pi row 2 (from LNR)
-  move_probs_LMC ~ dirichlet(rep_vector(1, 4)); // pi row 3 (from LMC)
-  move_probs_UMC ~ dirichlet( [10, 10, 10, 2]' ); // pi row 4 (from UMC, less likely to go to UNR)
-  move_probs_UNR ~ dirichlet( [10, 10, 2, 10]' ); // pi row 5 (from UNR, less likely to go to UMC)
+  move_probs_LNR ~ dirichlet( [10, 8, 6, 8, 6]' ); // pi row 2 (from LNR)
+  move_probs_LMC ~ dirichlet( [8, 10, 8, 8, 4]' ); // pi row 3 (from LMC)
+  move_probs_UMC ~ dirichlet( [4, 8, 10, 4, 2]' ); // pi row 4 (from UMC, less likely to go to UNR/UUNR)
+  move_probs_UNR ~ dirichlet( [8, 8, 4, 10, 8]' ); // pi row 5 (from UNR, less likely to go to UMC)
+  move_probs_UUNR ~ dirichlet( [4, 4, 2, 10, 15]' ); // pi row 6 (from UUNR, less likely to go to UMC)
 
   // --- Likelihood 1: Marked Individuals ---
-  vector[6] start_xi = to_vector(state_probs[1]); 
+  vector[7] start_xi = to_vector(state_probs[1]); 
 
   for (i in 1:G) {
     if (sum(y[i]) > K) { // Check if individual was ever seen (sum of y > K if only 1s)
@@ -259,31 +280,29 @@ model {
       // We mix the "psi" explicitly or just run it on observed.
       // Standard JS data augmentation in Stan usually conditions on observed:
 
-      target += log(psi) + forward_alg(y[i], K, 6, start_xi, Gamma, Rho[i]);
+      target += log(psi) + forward_alg(y[i], K, 7, start_xi, Gamma, Rho[i]);
     } else {
       // "Zero trick" or marginalizing 'psi' for never-seen individuals 
       // is handled in 'generated quantities' or via a specific N-mixture likelihood.
       // Assuming G contains only potential captures + augmentation
       // Log-probability of history y[i] (which is all 1s/zeros):
 
-       real log_prob_zero = forward_alg(y[i], K, 6, start_xi, Gamma, Rho[i]);
+       real log_prob_zero = forward_alg(y[i], K, 7, start_xi, Gamma, Rho[i]);
        target += log_sum_exp(log(psi) + log_prob_zero, log1m(psi));
     }
   }
 
   // --- Likelihood 2: SSS Count Data ---
-  for (k in 1:Ksss) {
-    int day = sssSurveyOcc[k];
-    int reach = sssReach[k]; 
-    
-    // Safety clamp 
+  for (k in 1:N_sss_obs) {
+    int day = sss_day[k];
+    int reach = sss_reach[k]; 
+
+    // Calculate expected count for this specific observation pass
     real expected_count = fmax(LambdaSuper * state_probs[day, reach] * p_sss, 1e-9);
     
-    for(v in 1:V){
-      // JAGS: sssMat ~ dbin(p_sss, Nreach[day, reach])
-      // Stan: sssMat ~ Poisson(Expected_Count)
-      sssMat[k, v] ~ poisson(expected_count);
-    }
+    // JAGS: sssMat ~ dbin(p_sss, Nreach[day, reach])
+    // Stan: sssMat ~ Poisson(Expected_Count)
+    sss_counts[k] ~ poisson(expected_count);
   }
 }
 
@@ -330,11 +349,13 @@ generated quantities {
   vector[K] N_LMC = LambdaSuper * col(state_probs, 3);
   vector[K] N_UMC = LambdaSuper * col(state_probs, 4);
   vector[K] N_UNR = LambdaSuper * col(state_probs, 5);
-  vector[K] N = N_LNR + N_LMC + N_UMC + N_UNR;
+  vector[K] N_UUNR = LambdaSuper * col(state_probs, 6);
+  vector[K] N = N_LNR + N_LMC + N_UMC + N_UNR + N_UUNR;
   
   vector[K] M_LNR = Msuper * col(state_probs, 2);
   vector[K] M_LMC = Msuper * col(state_probs, 3);
   vector[K] M_UMC = Msuper * col(state_probs, 4);
   vector[K] M_UNR = Msuper * col(state_probs, 5);
-  vector[K] M = M_LNR + M_LMC + M_UMC + M_UNR;
+  vector[K] M_UUNR = Msuper * col(state_probs, 6);
+  vector[K] M = M_LNR + M_LMC + M_UMC + M_UNR + M_UUNR;
 }

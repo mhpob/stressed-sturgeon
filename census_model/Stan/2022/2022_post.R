@@ -1,12 +1,17 @@
 library(cmdstanr)
 library(posterior)
 library(bayesplot)
+library(dplyr)
+library(ggplot2)
+
+# mod <- cmdstan_model('census_model/Stan/models/census_model_inclUUNR.stan', compile = F)
+# mod$variables()
 
 d <- jsonlite::read_json(
-  "census_model/Stan/2022/2022_stan_data.json",
+  "census_model/Stan/2022/censusUUNR/UUNR_stan_data.json",
   simplifyVector = TRUE
 )
-fit <- readRDS("~/Desktop/out2022_stan.RDS")
+fit <- readRDS("~/Desktop/out2022_UUNR.RDS")
 
 fit$diagnostic_summary() # Nothing divergent
 
@@ -52,7 +57,7 @@ ggplot(data = N) +
       ymax = q97.5
     )
   ) +
-  ylim(0, 100)
+  ylim(0, 125)
 
 
 theta <- fit$summary(

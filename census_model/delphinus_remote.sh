@@ -1,3 +1,38 @@
+#### new with UUNR
+## Copy files
+scp -r ./census_model/Stan/2022/remote mike@delphinus:/home/mike/censusUUNR
+ssh mike@delphinus "cd censusUUNR && mkdir stan_out"
+
+## Compile model
+ssh mike@delphinus \
+  "nohup \
+      docker run --rm \
+      -v /home/mike/censusUUNR:/STAN \
+      -w /STAN \
+      census_tag \
+      Rscript -e 'cmdstanr::cmdstan_model(\"census_model_inclUUNR.stan\", compile = TRUE)' \
+      > /home/mike/censusUUNR/stan_compile.log 2>&1 &"
+## RUN
+ssh mike@delphinus \
+  "nohup \
+    docker run --rm \
+    -v /home/mike/censusUUNR:/STAN \
+    -w /STAN \
+    census_tag \
+    Rscript -e 'source(\"2022_run_stan_UUNR.R\")' \
+    > /home/mike/censusUUNR/out2022.log 2>&1 &"
+
+## Check in
+ssh mike@delphinus \
+  "docker ps &&
+  echo -e "\n" &&
+  cat ~/censusUUNR/out2022.log | tail"
+
+
+
+
+
+
 #### Stan
 ### 2021
 scp -r ./census_model/Stan/coleman mike@delphinus:/home/mike/census21
@@ -25,6 +60,16 @@ ssh mike@delphinus \
 
 scp mike@delphinus:/home/mike/census21/2022/out2022_stan.RDS ~/Desktop
 
+## old omega
+ssh mike@delphinus \
+  " nohup \
+    docker run --rm \
+    -v /home/mike/census21/coleman:/coleman \
+    -w /coleman \
+    census_tag \
+    Rscript -e 'source(\"2022_run_stan.R\")' \
+    > /home/mike/census21/coleman/out2022.log 2>&1 &"
+
 
 ### 2023
 ## copy stan data to delphinus
@@ -44,15 +89,41 @@ ssh mike@delphinus \
 
 ## copy stan model run script to delphinus
 scp ./census_model/Stan/2023_run_stan.R mike@delphinus:/home/mike/census21/STAN/2023_run_stan.R
-## Run model
+## old omega
 ssh mike@delphinus \
   " nohup \
     docker run --rm \
     -v /home/mike/census21/STAN:/STAN \
     -w /STAN \
     census_tag \
-    Rscript -e 'source(\"2023_run_stan.R\")' \
-    > /home/mike/census21/STAN/out2023.log 2>&1 &"
+    Rscript -e 'source(\"2021_run_stan.R\")' \
+    > /home/mike/census21/STAN/out2021_bigG.log 2>&1 &"
+
+### 2020
+## Run model
+ssh mike@delphinus \
+  " nohup \
+    docker run --rm \
+    -v /home/mike/census21/STAN/2024:/STAN \
+    -w /STAN \
+    census_tag \
+    Rscript -e 'source(\"2024_run_stan_newO.R\")' \
+    > /home/mike/census21/STAN/2024/out2024lmc_newO.log 2>&1 &"
+
+## Check in
+ssh mike@delphinus \
+  "docker ps &&
+  echo -e "\n" &&
+  cat ~/census21/STAN/2024/out2024_newO.log | tail &&
+  echo -e "\n\n" &&
+  cat ~/census21/STAN/2024/out2024_oldO.log | tail"
+
+
+
+
+
+
+
 
 
 
