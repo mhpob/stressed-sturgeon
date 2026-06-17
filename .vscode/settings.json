@@ -1,0 +1,10 @@
+{
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "bash",
+      "icon": "terminal-bash",
+      "args": ["--rcfile", "${workspaceFolder}/census_model/scripts/init.sh"]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "bash"
+}

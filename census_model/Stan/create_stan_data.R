@@ -129,9 +129,21 @@ generate_stan_data <- function(start_date, end_date, out_file) {
   cmdstanr::write_stan_json(data_list, out_file)
 }
 
-
-generate_stan_data(
-  start_date = "2022-08-15",
-  end_date = "2022-10-31",
-  out_file = "census_model/Stan/2022/UUNR_stan_data.json"
-)
+#### 2022 ####
+# generate_stan_data(
+#   start_date = "2022-08-15",
+#   end_date = "2022-10-31",
+#   out_file = "census_model/Stan/2022/censusUUNR/UUNR_stan_data.json"
+# )
+#### 2023 ####
+# generate_stan_data(
+#   start_date = "2023-08-04",
+#   end_date = "2023-10-31",
+#   out_file = "census_model/Stan/2023/censusUUNR/UUNR_stan_data.json"
+# )
+#### 2024 ####
+# generate_stan_data(
+#   start_date = "2024-08-13",
+#   end_date = "2024-10-30",
+#   out_file = "census_model/Stan/2024/censusUUNR/UUNR_stan_data.json"
+# )
